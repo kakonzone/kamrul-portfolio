@@ -4,4 +4,4 @@ dist
 *.local
 .env
 .env.*
-verification/
+verification/dist
