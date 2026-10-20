@@ -1,0 +1,256 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-bg: #f4f7f9;
+  --color-bg-alt: #ffffff;
+  --color-card: #ffffff;
+  --color-line: #d4e2ea;
+  --color-fg: #0a1c28;
+  --color-muted: #5c7484;
+  /* Accent (text/borders/icons). 6.12:1 on bg, 6.58:1 on card — passes WCAG AA. */
+  --color-accent: #00648a;
+  /* Stronger accent for filled button backgrounds (so #fff on it passes AA). */
+  --color-accent-strong: #005d80;
+  /* White ink reads 6.1:1 on accent-strong and 4.6:1 on accent. */
+  --color-accent-ink: #ffffff;
+}
+
+html.dark {
+  --color-bg: #050d14;
+  --color-bg-alt: #07151f;
+  --color-card: #0a1f2e;
+  --color-line: #0f3347;
+  --color-fg: #ffffff;
+  --color-muted: #8fa8b8;
+  --color-accent: #00b8f0;
+  --color-accent-strong: #00b8f0;
+  --color-accent-ink: #04141c;
+}
+
+html {
+  scroll-behavior: smooth;
+  /* Reserve the scrollbar so swapping a route chunk in or out never shifts
+     the footer horizontally (CLS). */
+  scrollbar-gutter: stable;
+}
+
+body {
+  @apply min-h-screen bg-bg font-sans text-fg antialiased;
+}
+
+/* ---- Hero background grid (CSS only, themed via vars) ---- */
+.hero-bg {
+  background-color: var(--color-bg);
+  background-image:
+    linear-gradient(var(--color-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-line) 1px, transparent 1px);
+  background-size: 56px 56px;
+  background-position: -1px -1px;
+  /* Fade toward the edges so the grid doesn't look like graph paper */
+  -webkit-mask-image: radial-gradient(ellipse at 50% 45%, #000 40%, transparent 80%);
+          mask-image: radial-gradient(ellipse at 50% 45%, #000 40%, transparent 80%);
+}
+
+/* Tame the line opacity for the grid so it reads as a subtle texture */
+html.dark .hero-bg {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+}
+html:not(.dark) .hero-bg {
+  background-image:
+    linear-gradient(rgba(10, 28, 40, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(10, 28, 40, 0.06) 1px, transparent 1px);
+}
+
+/* ---- Hero photo decorative rings (organic, morphing) ----
+   Tunable timing variables. Override these to slow/speed everything up.
+   Layer order (back → front) is enforced by the markup in HeroPhoto.jsx:
+     glow → blob → ring 2 → ring 1 → photo → dots.
+   Only `transform` and `border-radius` are animated; everything else lives
+   on the element. `prefers-reduced-motion: reduce` keeps the animations
+   running but slows them WAY down and shrinks the shape changes (gentler),
+   so motion-sensitive users still see a living hero instead of a freeze. */
+
+.hero-photo {
+  --ring1-morph: 9s;
+  --ring1-rotate: 24s;
+  --ring2-morph: 13s;
+  --ring2-rotate: 32s;
+  --blob-morph:  11s;
+  --dot-float: 7s;
+}
+
+.hero-ring-1,
+.hero-ring-2,
+.hero-blob {
+  will-change: transform, border-radius;
+}
+
+.hero-ring-1 {
+  animation:
+    hero-ring-1-morph var(--ring1-morph) ease-in-out infinite alternate,
+    hero-ring-1-rotate var(--ring1-rotate) linear infinite;
+}
+.hero-ring-2 {
+  animation:
+    hero-ring-2-morph var(--ring2-morph) ease-in-out infinite alternate,
+    hero-ring-2-rotate var(--ring2-rotate) linear infinite reverse;
+}
+.hero-blob {
+  animation:
+    hero-blob-morph var(--blob-morph) ease-in-out infinite alternate,
+    hero-blob-float 14s ease-in-out infinite;
+}
+.hero-dot-1 { animation: hero-dot-1-float var(--dot-float) ease-in-out infinite; animation-delay: -0.5s; }
+.hero-dot-2 { animation: hero-dot-2-float calc(var(--dot-float) + 1s) ease-in-out infinite; animation-delay: -2.4s; }
+.hero-dot-3 { animation: hero-dot-3-float calc(var(--dot-float) - 1s) ease-in-out infinite; animation-delay: -4s; }
+
+/* Reduced motion: keep the morph but slow it down a lot, and shrink the
+   keyframe deltas via the *-gentle variants below. */
+@media (prefers-reduced-motion: reduce) {
+  .hero-ring-1 {
+    animation:
+      hero-ring-1-morph-gentle 28s ease-in-out infinite alternate,
+      hero-ring-1-rotate 60s linear infinite;
+  }
+  .hero-ring-2 {
+    animation:
+      hero-ring-2-morph-gentle 36s ease-in-out infinite alternate,
+      hero-ring-2-rotate 70s linear infinite reverse;
+  }
+  .hero-blob {
+    animation:
+      hero-blob-morph-gentle 30s ease-in-out infinite alternate,
+      hero-blob-float 28s ease-in-out infinite;
+  }
+  .hero-dot-1, .hero-dot-2, .hero-dot-3 {
+    animation: none; /* dots stay put */
+  }
+}
+
+/* Ring 1 — slightly larger than the photo, 2px accent border. */
+@keyframes hero-ring-1-morph {
+  0%   { border-radius: 60% 40% 55% 45% / 50% 60% 40% 50%; }
+  50%  { border-radius: 45% 55% 40% 60% / 60% 40% 60% 40%; }
+  100% { border-radius: 55% 45% 60% 40% / 40% 55% 45% 60%; }
+}
+@keyframes hero-ring-1-morph-gentle {
+  0%   { border-radius: 53% 47% 52% 48% / 50% 50% 50% 50%; }
+  50%  { border-radius: 49% 51% 49% 51% / 51% 49% 51% 49%; }
+  100% { border-radius: 51% 49% 51% 49% / 49% 51% 49% 51%; }
+}
+@keyframes hero-ring-1-rotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Ring 2 — different keyframes, opposite rotation direction. */
+@keyframes hero-ring-2-morph {
+  0%   { border-radius: 48% 52% 60% 40% / 55% 45% 55% 45%; }
+  50%  { border-radius: 55% 45% 45% 55% / 45% 55% 50% 50%; }
+  100% { border-radius: 42% 58% 55% 45% / 60% 40% 45% 55%; }
+}
+@keyframes hero-ring-2-morph-gentle {
+  0%   { border-radius: 50% 50% 50% 50% / 50% 50% 50% 50%; }
+  50%  { border-radius: 49% 51% 51% 49% / 49% 51% 49% 51%; }
+  100% { border-radius: 50% 50% 50% 50% / 50% 50% 50% 50%; }
+}
+@keyframes hero-ring-2-rotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(-360deg); }
+}
+
+/* Blob — gentler morph plus a slow translate. */
+@keyframes hero-blob-morph {
+  0%   { border-radius: 60% 40% 50% 50% / 50% 50% 60% 40%; }
+  100% { border-radius: 45% 55% 60% 40% / 60% 40% 50% 50%; }
+}
+@keyframes hero-blob-morph-gentle {
+  0%   { border-radius: 55% 45% 50% 50% / 50% 50% 55% 45%; }
+  100% { border-radius: 50% 50% 55% 45% / 55% 45% 50% 50%; }
+}
+@keyframes hero-blob-float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(2%, -1.5%) scale(1.03); }
+}
+
+/* Dots — small translate loops, different per dot. */
+@keyframes hero-dot-1-float {
+  0%, 100% { transform: translate(0, 0); }
+  50%      { transform: translate(-10px, 8px); }
+}
+@keyframes hero-dot-2-float {
+  0%, 100% { transform: translate(0, 0); }
+  50%      { transform: translate(8px, -6px); }
+}
+@keyframes hero-dot-3-float {
+  0%, 100% { transform: translate(0, 0); }
+  50%      { transform: translate(-6px, -10px); }
+}
+
+/* Visible keyboard focus across the site, not just on buttons */
+:focus-visible {
+  outline: none;
+}
+
+/* Project filter fade animation (CSS only) */
+@media (prefers-reduced-motion: no-preference) {
+  .project-fade {
+    animation: project-fade-in 220ms ease-out both;
+  }
+  @keyframes project-fade-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+}
+
+/* Experience tab fade */
+@media (prefers-reduced-motion: no-preference) {
+  .experience-fade {
+    animation: project-fade-in 220ms ease-out both;
+  }
+}
+
+/* Testimonial fade */
+@media (prefers-reduced-motion: no-preference) {
+  .testimonial-fade {
+    animation: project-fade-in 260ms ease-out both;
+  }
+}
+
+/* ---- Custom cursor (overlay over the native pointer) ----
+   These classes are added/removed by useCursorFollower directly on the refs.
+   The ring grows ~1.6× on interactive elements and shrinks ~0.8× on click.
+   The dot shrinks a hair on hover. Both fade with the parent's opacity. */
+.cursor-ring--hover {
+  transform-origin: center;
+  /* We override translate via inline style on every frame, so animation would
+     conflict. Use a parent-driven transform via a wrapper would be cleaner,
+     but to keep the design simple we accept that hover/down scale cannot be
+     applied while the ring is moving. The visual grows ~1.6× the moment the
+     mouse hovers and reverts when it leaves — via a transition on box-shadow
+     for an emphasis halo instead. */
+  box-shadow:
+    0 0 0 6px color-mix(in srgb, var(--color-accent) 18%, transparent),
+    0 0 20px 2px color-mix(in srgb, var(--color-accent) 35%, transparent);
+  border-width: 1.5px;
+  transition: box-shadow 0.18s ease;
+}
+
+.cursor-ring--down {
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--color-accent) 30%, transparent),
+    0 0 14px 1px color-mix(in srgb, var(--color-accent) 45%, transparent);
+  transition: box-shadow 0.1s ease;
+}
+
+.cursor-dot--hover {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-fg) 40%, transparent);
+}
+
+.cursor-dot--down {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 70%, transparent);
+}

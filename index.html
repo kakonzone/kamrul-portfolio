@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Theme bootstrap: must run before paint to avoid a flash of light theme -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('theme');
+          var theme = stored === 'light' || stored === 'dark' ? stored : 'dark';
+          document.documentElement.classList.toggle('dark', theme === 'dark');
+        } catch (e) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
+
+    <!-- Primary Meta -->
+    <title>Kamrul | Software Engineer &amp; App Developer</title>
+    <meta name="description" content="I build practical, user-focused applications with Flutter, Dart, and Python. I focus on cross-platform app development, API integration, backend services, and building software that solves real-world problems." />
+
+    <!-- Theme color follows the active theme. The dark one is the default;
+         light kicks in only after a user toggle. Browser ignore-strict doesn't
+         matter — it's an HTTP-equiv-adjacent hint, not a script. -->
+    <meta name="theme-color" content="#050d14" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f4f7f9" media="(prefers-color-scheme: light)" />
+
+    <!-- Canonical: updated at build time from VITE_SITE_URL. Falls back to /. -->
+    <link rel="canonical" href="https://kamrul.example.com/" />
+
+    <!-- Favicon set. SVG is the primary; PNGs cover platforms that ignore it. -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
+    <!-- Open Graph (defaults — per-route meta is set by useDocumentMeta) -->
+    <meta property="og:site_name" content="Kamrul | Software Engineer &amp; App Developer" />
+    <meta property="og:title" content="Kamrul | Software Engineer &amp; App Developer" />
+    <meta property="og:description" content="I build practical, user-focused applications with Flutter, Dart, and Python. I focus on cross-platform app development, API integration, backend services, and building software that solves real-world problems." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://kamrul.example.com/" />
+    <meta property="og:image" content="https://kamrul.example.com/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="PLACEHOLDER: Replace with an Open Graph image (1200x630)." />
+
+    <!-- Twitter card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Kamrul | Software Engineer &amp; App Developer" />
+    <meta name="twitter:description" content="I build practical, user-focused applications with Flutter, Dart, and Python. I focus on cross-platform app development, API integration, backend services, and building software that solves real-world problems." />
+    <meta name="twitter:image" content="https://kamrul.example.com/og-image.png" />
+
+    <!-- JSON-LD Person schema. Profile fields are filled at build time
+         from src/data/profile.js. Treat anything still showing PLACEHOLDER as
+         an empty user task, not a bug. -->
+    <script id="ld-person" type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Person",
+  "name": "Kamrul",
+  "jobTitle": "Software Engineer & App Developer",
+  "url": "https://kamrul.example.com/",
+  "image": "https://kamrul.example.com/og-image.png",
+  "description": "I build practical, user-focused applications with Flutter, Dart, and Python. I focus on cross-platform app development, API integration, backend services, and building software that solves real-world problems.",
+  "knowsAbout": [
+    "Flutter",
+    "Dart",
+    "Cross-platform mobile",
+    "Firebase",
+    "iOS",
+    "Android"
+  ]
+}
+</script>
+
+    <!-- Fonts: preconnect + async load so the third-party stylesheet never
+         blocks first paint. `media="print"` makes it non-render-blocking;
+         onload flips it back to `all` once it arrives. The no-JS fallback
+         <noscript><link> keeps the font working without JavaScript.
+         Outfit uses display=swap, so text paints immediately in the
+         fallback stack and reflows once the webfont loads. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+      />
+    </noscript>
+  </head>
+  <body>
+    <!-- Rendered on first paint by useCursorFollower. CSS hides it until visible. -->
+    <a
+      href="#main-content"
+      class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[10000] focus:rounded-md focus:bg-accent focus:px-4 focus:py-2 focus:text-accent-ink focus:shadow-lg"
+    >
+      Skip to main content
+    </a>
+
+    <!-- Message users without JavaScript, in case React fails to mount. -->
+    <noscript>
+      <div style="padding:24px;text-align:center;font-family:system-ui,sans-serif;color:#0a1c28;background:#f4f7f9;border-bottom:1px solid #d4e2ea;">
+        <strong>This portfolio needs JavaScript to render.</strong>
+        <span>Please enable JavaScript or visit the
+          <a href="https://github.com/" style="color:#00648a;">source repository</a> for the README.</span>
+      </div>
+    </noscript>
+
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

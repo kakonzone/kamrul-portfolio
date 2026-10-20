@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://kamrul.example.com/</loc>
+    <lastmod>2026-10-20</lastmod>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://kamrul.example.com/projects/lumio</loc>
+    <lastmod>2026-10-20</lastmod>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://kamrul.example.com/projects/unitrack</loc>
+    <lastmod>2026-10-20</lastmod>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://kamrul.example.com/projects/fact-check-bd</loc>
+    <lastmod>2026-10-20</lastmod>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://kamrul.example.com/projects/crypto-coin-screener</loc>
+    <lastmod>2026-10-20</lastmod>
+    <priority>0.7</priority>
+  </url>
+</urlset>
