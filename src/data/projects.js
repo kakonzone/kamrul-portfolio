@@ -1,17 +1,32 @@
-import lumioImg from '../assets/projects/lumio.png';
-import unitrackImg from '../assets/projects/unitrack.png';
-import factCheckImg from '../assets/projects/fact-check-bd.png';
-import cryptoImg from '../assets/projects/crypto-coin-screener.png';
-
 // Real projects. Category pills in the Projects section are DERIVED from this
 // list, so a category only renders once at least one project uses it — there
 // is no hand-maintained category array to fall out of sync.
 //
-// Project images: the `image` fields below point at clean gradient
-// placeholders. When you add a real screenshot, drop it at
-// src/assets/projects/<slug>.webp, run `npm run optimize:images` (it mirrors
-// responsive WebP/PNG variants into public/projects/), then point the matching
-// `image` field at the generated path — e.g. '/projects/lumio-800.webp'.
+// Image pipeline:
+//   - The original PNGs live in `./originals/<slug>.png` (gitignored).
+//   - `scripts/optimize-images.mjs` reads them and writes WebP-only variants
+//     480/800/1200 to `public/projects/<slug>-{480,800,1200}.webp`.
+//   - That script also writes `public/projects/<slug>-meta.json` containing
+//     the URLs, intrinsic size, and the aspect ratio.
+//   - Each project's `image` is the 800w WebP (the spec: "the 800w WebP as
+//     the <img src> fallback"); `srcSet` is built here from the JSON meta so
+//     the cards and the project detail page do nothing fancier than an <img>.
+
+import lumioMeta from '../../public/projects/lumio-meta.json';
+import unitrackMeta from '../../public/projects/unitrack-meta.json';
+import factCheckMeta from '../../public/projects/fact-check-bd-meta.json';
+import cryptoMeta from '../../public/projects/crypto-coin-screener-meta.json';
+
+function srcSet(meta) {
+  return meta.variants.map((v) => `${v.src} ${v.w}w`).join(', ');
+}
+
+const PROJECT_META = {
+  lumio: lumioMeta,
+  unitrack: unitrackMeta,
+  'fact-check-bd': factCheckMeta,
+  'crypto-coin-screener': cryptoMeta,
+};
 
 export const projects = [
   {
@@ -19,7 +34,9 @@ export const projects = [
     slug: 'lumio',
     title: 'Lumio',
     category: 'Mobile Apps',
-    image: lumioImg,
+    image: lumioMeta.src,
+    imageSrcSet: srcSet(lumioMeta),
+    imageAlt: 'Lumio screenshot',
     shortDescription: 'A Flutter IPTV and sports streaming app.',
     longDescription:
       'Lumio is a Flutter IPTV and sports streaming app. I built it end to end: the app itself, a Cloudflare Worker that serves the channel list, an in-app update system, and a GitHub Actions pipeline that builds and publishes release APKs. It started as LumioTV (Lumio Sports TV) and grew into a full project with its own backend and release process.',
@@ -34,15 +51,19 @@ export const projects = [
       'Chunked APK uploads to Appwrite Storage',
       'APK size optimization for GitHub releases',
       'Ad monetization integration',
-],
-    gallery: [lumioImg],
+    ],
+    gallery: [lumioMeta.src],
+    gallerySrcSet: srcSet(lumioMeta),
+    galleryAlt: 'Lumio screenshot',
   },
   {
     id: 'unitrack',
     slug: 'unitrack',
     title: 'UniTrack',
     category: 'Mobile Apps',
-    image: unitrackImg,
+    image: unitrackMeta.src,
+    imageSrcSet: srcSet(unitrackMeta),
+    imageAlt: 'UniTrack screenshot',
     shortDescription:
       'A real-time university bus tracking app built with Flutter as my final-year project.',
     longDescription:
@@ -57,14 +78,18 @@ export const projects = [
       'Background GPS tracking that keeps running through a foreground service, including on Xiaomi (MIUI) devices',
       'Built on Riverpod state management with a modular code structure',
     ],
-    gallery: [unitrackImg],
+    gallery: [unitrackMeta.src],
+    gallerySrcSet: srcSet(unitrackMeta),
+    galleryAlt: 'UniTrack screenshot',
   },
   {
     id: 'fact-check-bd',
     slug: 'fact-check-bd',
     title: 'Fact Check BD',
     category: 'Mobile Apps',
-    image: factCheckImg,
+    image: factCheckMeta.src,
+    imageSrcSet: srcSet(factCheckMeta),
+    imageAlt: 'Fact Check BD screenshot',
     shortDescription:
       'A Bengali news fact-checking app built with Flutter, backed by a Dart Shelf server with an ML model.',
     longDescription:
@@ -77,14 +102,18 @@ export const projects = [
       'PLACEHOLDER: Key feature 2 for Fact Check BD.',
       'PLACEHOLDER: Key feature 3 for Fact Check BD.',
     ],
-    gallery: [factCheckImg],
+    gallery: [factCheckMeta.src],
+    gallerySrcSet: srcSet(factCheckMeta),
+    galleryAlt: 'Fact Check BD screenshot',
   },
   {
     id: 'cryptic-riddles',
     slug: 'cryptic-riddles',
     title: 'Cryptic Riddles',
     category: 'Mobile Apps',
-    image: cryptoImg,
+    image: cryptoMeta.src,
+    imageSrcSet: srcSet(cryptoMeta),
+    imageAlt: 'Cryptic Riddles screenshot',
     shortDescription:
       'A Flutter desktop app for crypto market analysis, with an embedded Dart Shelf server that aggregates data from multiple exchanges.',
     longDescription:
@@ -99,12 +128,14 @@ export const projects = [
       'On-chain analysis with ETH burn tracking and whale activity monitoring',
       'Dashboard with price chart, funding rate and open interest context',
     ],
-    gallery: [cryptoImg],
+    gallery: [cryptoMeta.src],
+    gallerySrcSet: srcSet(cryptoMeta),
+    galleryAlt: 'Cryptic Riddles screenshot',
   },
 ];
 
 export function projectBySlug(slug) {
-  return projects.find((p) => p.slug === slug) ?? null;
+  return projects.find((p) => p.slug === slug) ?? projects.find((p) => p.id === slug) ?? null;
 }
 
 export function nextProjectAfter(currentProject) {

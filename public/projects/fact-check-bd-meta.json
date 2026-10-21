@@ -1,0 +1,26 @@
+{
+  "src": "/projects/fact-check-bd-800.webp",
+  "width": 800,
+  "height": 447,
+  "intrinsic": {
+    "w": 2752,
+    "h": 1536
+  },
+  "variants": [
+    {
+      "src": "/projects/fact-check-bd-480.webp",
+      "w": 480,
+      "kb": 12.1
+    },
+    {
+      "src": "/projects/fact-check-bd-800.webp",
+      "w": 800,
+      "kb": 25.1
+    },
+    {
+      "src": "/projects/fact-check-bd-1200.webp",
+      "w": 1200,
+      "kb": 44.1
+    }
+  ]
+}

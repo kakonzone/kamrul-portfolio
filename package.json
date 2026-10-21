@@ -8,10 +8,13 @@
     "build": "node scripts/generate-sitemap.mjs && node scripts/inject-meta.mjs && vite build",
     "preview": "vite preview",
     "check:content": "node scripts/check-content.mjs",
+    "check:assets": "node scripts/check-assets.mjs",
     "sitemap": "node scripts/generate-sitemap.mjs",
     "optimize:images": "node scripts/optimize-images.mjs",
     "lighthouse": "node scripts/lighthouse.mjs",
-    "axe": "node scripts/axe.mjs"
+    "axe": "node scripts/axe.mjs",
+    "perf:check": "node scripts/perf-check.mjs",
+    "measure:fx": "node scripts/measure-fx.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.469.0",

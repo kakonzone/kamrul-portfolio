@@ -1,0 +1,26 @@
+{
+  "src": "/projects/lumio-800.webp",
+  "width": 800,
+  "height": 447,
+  "intrinsic": {
+    "w": 2752,
+    "h": 1536
+  },
+  "variants": [
+    {
+      "src": "/projects/lumio-480.webp",
+      "w": 480,
+      "kb": 17.1
+    },
+    {
+      "src": "/projects/lumio-800.webp",
+      "w": 800,
+      "kb": 36.2
+    },
+    {
+      "src": "/projects/lumio-1200.webp",
+      "w": 1200,
+      "kb": 61.3
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "src": "/projects/unitrack-800.webp",
+  "width": 800,
+  "height": 447,
+  "intrinsic": {
+    "w": 2752,
+    "h": 1536
+  },
+  "variants": [
+    {
+      "src": "/projects/unitrack-480.webp",
+      "w": 480,
+      "kb": 14.7
+    },
+    {
+      "src": "/projects/unitrack-800.webp",
+      "w": 800,
+      "kb": 29.8
+    },
+    {
+      "src": "/projects/unitrack-1200.webp",
+      "w": 1200,
+      "kb": 50.2
+    }
+  ]
+}

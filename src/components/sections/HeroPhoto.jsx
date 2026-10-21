@@ -1,18 +1,25 @@
-// Decorative photo oval: glow → blob → ring 2 → ring 1 → photo → dots.
-// Rings morph continuously via animated border-radius and rotate slowly.
-// Markup matters: the layer order in this file matches the spec.
+// Hero decoration: glow → blob → 3 rings → photo → dots.
 //
-// The photo is a <picture> with WebP sources + a PNG fallback, served from
-// /public (NEVER bundled) via srcset + sizes. Eager + fetchpriority="high"
-// because the hero image is the LCP element on /.
+// COST MODEL (this is the whole point of the rewrite):
+//   - Glow and blob are STATIC radial-gradients. The soft falloff lives inside
+//     the gradient stops, so there is no `filter: blur()` and therefore no
+//     re-raster of a large blurred layer.
+//   - The three rings have FIXED border-radius and only rotate, so the browser
+//     rasterises them once and then only re-composites (transform-only animation
+//     never touches Style, Layout, Paint or Raster).
+//   - Nothing here animates unless <html> has `.fx-on`, which is only added
+//     after a capability check passes. The calm version is the default and
+//     already looks complete.
+//
+// Layer order is enforced here (glow, blob, rings, photo, dots) and every
+// decoration is aria-hidden + pointer-events-none. The photo wrapper is the
+// clipping context on narrow screens so no decoration can bleed onto the text.
 
 export default function HeroPhoto({ photo, alt }) {
   const w = photo.width;
   const h = photo.height;
   const sizes = '(max-width: 768px) 80vw, 460px';
 
-  // <source> children for each WebP variant; the <img> carries the PNG
-  // fallback srcset so non-WebP browsers get the same responsive choice.
   const webpSources = photo.webp.map((s) => (
     <source key={s.src} type="image/webp" srcSet={`${s.src} ${s.w}w`} sizes={sizes} />
   ));
@@ -20,60 +27,24 @@ export default function HeroPhoto({ photo, alt }) {
 
   return (
     <div className="hero-photo relative mx-auto w-full max-w-[460px] aspect-[415/480]">
-      {/* 1. Cyan radial glow (back) — blur 80px, opacity ~0.25 */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -inset-20"
-        style={{
-          background:
-            'radial-gradient(closest-side, color-mix(in srgb, var(--color-accent) 25%, transparent) 0%, transparent 70%)',
-          filter: 'blur(80px)',
-        }}
-      />
+      {/* 1. Glow — static radial gradient, no filter: blur(). The gradient
+          itself carries the falloff, so this costs one paint, never a re-raster. */}
+      <div aria-hidden="true" className="hero-glow pointer-events-none absolute -inset-20" />
 
-      {/* 2. Filled teal blob (accent ~25-35% opacity, larger, offset down-left).
-         border-radius is animated by .hero-blob. */}
-      <div
-        aria-hidden="true"
-        className="hero-blob pointer-events-none absolute"
-        style={{
-          inset: '-18% -10% -8% -16%',
-          background:
-            'radial-gradient(45% 55% at 35% 60%, color-mix(in srgb, var(--color-accent) 55%, transparent) 0%, color-mix(in srgb, var(--color-accent) 22%, transparent) 60%, transparent 100%)',
-          borderRadius: '60% 40% 50% 50% / 50% 50% 60% 40%',
-          filter: 'blur(40px)',
-        }}
-      />
+      {/* 2. Blob — static radial gradient. Under .fx-on it drifts extremely
+          slowly (transform only). */}
+      <div aria-hidden="true" className="hero-blob pointer-events-none absolute" />
 
-      {/* 3. Ring 2 — 1px accent @ 50% opacity, slightly larger than ring 1. */}
-      <div
-        aria-hidden="true"
-        className="hero-ring-2 pointer-events-none absolute inset-0"
-        style={{
-          border: '1px solid var(--color-accent)',
-          opacity: 0.5,
-          borderRadius: '54% 46% 60% 40% / 50% 50% 50% 50%',
-          transform: 'translate(0,0)',
-        }}
-      />
+      {/* 3. Rings — three fixed organic shapes, rotation only under .fx-on. */}
+      <div aria-hidden="true" className="hero-rings pointer-events-none absolute">
+        <i />
+        <i />
+        <i />
+      </div>
 
-      {/* 4. Ring 1 — 2px accent border. */}
-      <div
-        aria-hidden="true"
-        className="hero-ring-1 pointer-events-none absolute"
-        style={{
-          inset: '4%',
-          border: '2px solid var(--color-accent)',
-          borderRadius: '60% 40% 55% 45% / 50% 60% 40% 50%',
-          transform: 'translate(0,0)',
-        }}
-      />
-
-      {/* 5. Photo. <picture> with WebP srcset + PNG fallback. The outer
-         container is round so the photo is clipped to a circle. Explicit
-         width/height on the <img> prevents CLS. Eager + fetchpriority="high"
-         because the hero photo is the LCP element. */}
-      <div className="relative h-full w-full overflow-hidden rounded-[50%] bg-transparent">
+      {/* 4. Photo. The wrapper clips on narrow screens so nothing above can
+          bleed onto the text column or under the navbar. */}
+      <div className="hero-clip relative h-full w-full overflow-hidden rounded-[50%] bg-transparent">
         <picture>
           {webpSources}
           <img
@@ -87,33 +58,19 @@ export default function HeroPhoto({ photo, alt }) {
             fetchPriority="high"
             decoding="async"
             className="absolute inset-0 h-full w-full object-cover object-top"
-            style={{
-              WebkitMaskImage:
-                'radial-gradient(closest-side, #000 70%, transparent 100%)',
-              maskImage:
-                'radial-gradient(closest-side, #000 70%, transparent 100%)',
-              filter: 'saturate(1.05)',
-            }}
+            // A STATIC filter on a STATIC image. The rings above are separate
+            // siblings animated with transform-only, so rotating them never
+            // invalidates this image or re-runs the filter. Verified with a CDP
+            // trace — see verification/perf/saturate-cost.md.
+            style={{ filter: 'saturate(1.05)' }}
           />
         </picture>
       </div>
 
-      {/* 6. Dots — float around the rings. */}
-      <span
-        aria-hidden="true"
-        className="hero-dot-1 absolute right-[2%] top-[18%] h-2.5 w-2.5 rounded-full"
-        style={{ background: 'var(--color-accent)' }}
-      />
-      <span
-        aria-hidden="true"
-        className="hero-dot-2 absolute bottom-[10%] left-[8%] h-2 w-2 rounded-full"
-        style={{ background: 'var(--color-accent)' }}
-      />
-      <span
-        aria-hidden="true"
-        className="hero-dot-3 absolute left-[4%] top-[55%] h-1.5 w-1.5 rounded-full"
-        style={{ background: 'var(--color-accent)' }}
-      />
+      {/* 5. Dots — static by default, tiny float under .fx-on. */}
+      <span aria-hidden="true" className="hero-dot hero-dot-1 absolute" />
+      <span aria-hidden="true" className="hero-dot hero-dot-2 absolute" />
+      <span aria-hidden="true" className="hero-dot hero-dot-3 absolute" />
     </div>
   );
 }

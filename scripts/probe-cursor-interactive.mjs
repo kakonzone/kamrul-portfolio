@@ -18,7 +18,9 @@ function scaleOf(t) {
 }
 
 const targets = [
-  ['nav link',                 'a'],
+  // The blog section is flagged off (profile.sections.blog === false), so there
+  // are no blog cards to probe on the Home page.
+  ['nav link',                 'header nav ul a'],
   ['filter pill',              '#projects [role="group"] button'],
   ['project card image',       '#projects .project-fade img'],
   ['project card h3',          '#projects .project-fade h3'],
@@ -26,9 +28,6 @@ const targets = [
   ['project card tag',         '#projects .project-fade span'],
   ['project card Source Code',  '#projects a[href*="github.com"]'],
   ['project card View Details','#projects a[href^="/projects/"]'],
-  ['blog card h3',             '#blog article h3, #blog h3'],
-  ['blog card img',            '#blog article img, #blog img'],
-  ['blog card tag',            '#blog span'],
   ['contact heading',          '#contact h2'],
   ['contact paragraph',        '#contact p'],
   ['contact name input',       '#contact-name'],
@@ -46,7 +45,10 @@ async function runEngine(browserType, engineName) {
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(`console.error: ${m.text()}`); });
 
-  await page.goto(SITE + '/', { waitUntil: 'networkidle' });
+  // The custom cursor only exists in rich mode, and on this headless host the
+// capability check correctly lands on calm (SwiftShader). Force rich so the
+// cursor behaviour is actually exercised.
+  await page.goto(SITE + '/?fx=rich&noguard=1', { waitUntil: 'networkidle' });
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(400);
 

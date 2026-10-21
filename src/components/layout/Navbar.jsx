@@ -73,7 +73,7 @@ export default function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-bg/80 backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-line bg-bg/95">
       {/* Desktop: 3-col grid so the link list is centered relative to the viewport. */}
       <nav className="relative mx-auto hidden h-16 max-w-content items-center px-6 md:grid md:grid-cols-3">
         <a

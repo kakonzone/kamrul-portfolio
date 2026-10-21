@@ -1,0 +1,26 @@
+{
+  "src": "/projects/crypto-coin-screener-800.webp",
+  "width": 800,
+  "height": 447,
+  "intrinsic": {
+    "w": 2752,
+    "h": 1536
+  },
+  "variants": [
+    {
+      "src": "/projects/crypto-coin-screener-480.webp",
+      "w": 480,
+      "kb": 16.4
+    },
+    {
+      "src": "/projects/crypto-coin-screener-800.webp",
+      "w": 800,
+      "kb": 33.4
+    },
+    {
+      "src": "/projects/crypto-coin-screener-1200.webp",
+      "w": 1200,
+      "kb": 56.4
+    }
+  ]
+}

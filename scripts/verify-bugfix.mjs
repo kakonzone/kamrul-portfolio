@@ -24,10 +24,20 @@ async function shootHero(page, label) {
   const photo = await page.$('#hero');
   if (photo) await photo.scrollIntoViewIfNeeded();
   for (let i = 0; i < 3; i++) {
-    const r = await page.evaluate(() => ({
-      ring1: getComputedStyle(document.querySelector('.hero-ring-1')).borderRadius,
-      ring2: getComputedStyle(document.querySelector('.hero-ring-2')).borderRadius,
-    }));
+    const r = await page.evaluate(() => {
+      const rings = document.querySelectorAll('.hero-rings i');
+      const tf = (el) => (el ? getComputedStyle(el).transform : 'none');
+      return {
+        // The rings no longer animate border-radius (that was the expensive
+        // morph). They rotate via transform, so the live assertion is the
+        // rotation matrix: three distinct values 2s apart means they are
+        // turning. border-radius must stay fixed.
+        r1: tf(rings[0]),
+        r2: tf(rings[1]),
+        r3: tf(rings[2]),
+        ringRadiusFixed: rings[0] ? getComputedStyle(rings[0]).borderRadius : 'n/a',
+      };
+    });
     samples.push(r);
     try {
       await page.screenshot({
@@ -39,13 +49,19 @@ async function shootHero(page, label) {
     }
     if (i < 2) await page.waitForTimeout(2000);
   }
-  const u1 = new Set(samples.map((s) => s.ring1)).size;
-  const u2 = new Set(samples.map((s) => s.ring2)).size;
-  return { samples, u1, u2 };
+  // Each ring's transform should be distinct 2s apart while rotating, and
+  // border-radius must stay constant (no morphing).
+  const u1 = new Set(samples.map((s) => s.r1)).size;
+  const u2 = new Set(samples.map((s) => s.r2)).size;
+  const u3 = new Set(samples.map((s) => s.r3)).size;
+  const radiusConst = new Set(samples.map((s) => s.ringRadiusFixed)).size;
+  return { samples, u1, u2, u3, radiusConst };
 }
 
 async function trackCursorOverSections(page) {
-  const sections = ['hero', 'about', 'skills', 'services', 'projects', 'experience', 'testimonials', 'blog', 'contact'];
+  // Sections that are currently enabled (services / testimonials / blog are
+// flagged off in profile.sections and no longer rendered on Home).
+  const sections = ['hero', 'about', 'projects', 'skills', 'experience', 'resume', 'contact'];
   const out = [];
   for (const id of sections) {
     const box = await page.evaluate((sid) => {
@@ -91,7 +107,10 @@ async function runEngine(browserType, engineName, mode) {
   page.on('pageerror', (e) => errors.push(`[${engineName}/${mode}] pageerror: ${e.message}`));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(`[${engineName}/${mode}] console.error: ${m.text()}`); });
 
-  await page.goto(SITE + '/', { waitUntil: 'networkidle' });
+  // The bugfix script asserts the cursor nodes EXIST. On this headless host the
+// capability check lands on calm (SwiftShader) and the cursor is intentionally
+// not mounted. Force rich so the node-presence assertions are exercised.
+  await page.goto(SITE + '/?fx=rich&noguard=1', { waitUntil: 'networkidle' });
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(300);
 
@@ -108,7 +127,10 @@ async function runEngine(browserType, engineName, mode) {
   log.push(`[${engineName}/${mode}] cursor nodes exist: ${cursorExists} (expect true for desktop & reducedMotion, false for touchOnly)`);
 
   const hero = await shootHero(page, `${engineName}-${mode}`);
-  log.push(`[${engineName}/${mode}] ring1 unique: ${hero.u1}/3 ring2 unique: ${hero.u2}/3 (expect 3 each for desktop & reducedMotion)`);
+  log.push(
+    `[${engineName}/${mode}] ring rotation unique: r1 ${hero.u1}/3 r2 ${hero.u2}/3 r3 ${hero.u3}/3` +
+      ` · border-radius distinct values: ${hero.radiusConst} (expect 1 = fixed, no morph)`,
+  );
 
   const tracking = await trackCursorOverSections(page);
   for (const t of tracking) {

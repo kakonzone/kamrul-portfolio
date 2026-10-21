@@ -5,10 +5,15 @@ import SocialLinks from './SocialLinks';
 
 export default function Hero() {
   return (
-    <section id="hero" className="hero-bg relative overflow-hidden">
+    <section id="hero" className="hero-bg relative">
+      {/* Grid: photo first on mobile (order-1), text first on desktop.
+          Both columns get an explicit z-index so the text column always paints
+          above every decoration layer, at every width. Previously both were
+          z-index:auto and the glow/blob — which are larger than the photo
+          wrapper and extend past it with negative insets — painted over the
+          text on narrow screens. */}
       <div className="mx-auto grid max-w-content items-center gap-12 px-6 py-12 md:grid-cols-2 md:gap-16 md:py-16">
-        {/* Mobile: photo first (order-1); Desktop: text first (order-1 here, photo order-2). */}
-        <div className="order-2 md:order-1">
+        <div className="relative z-20 order-2 md:order-1">
           <p className="mb-4 text-xs font-semibold uppercase tracking-[0.22em] text-accent">
             {profile.eyebrow}
           </p>
@@ -40,7 +45,9 @@ export default function Hero() {
           <SocialLinks items={profile.social} className="mt-8" />
         </div>
 
-        <div className="order-1 md:order-2">
+        {/* The decoration lives inside this wrapper and is clipped to it on
+            narrow screens, so nothing can bleed onto the text or the navbar. */}
+        <div className="hero-stage relative z-10 order-1 md:order-2">
           <HeroPhoto photo={profile.photo} alt={profile.photo.alt || profile.name} />
         </div>
       </div>

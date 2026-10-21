@@ -128,7 +128,17 @@ export default function ProjectDetail() {
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               {project.gallery.map((src, i) => (
                 <div key={i} className="overflow-hidden rounded-2xl border border-line">
-                  <img src={src} alt={`${project.title} screenshot ${i + 1}`} className="w-full object-cover" />
+                  <img
+                    src={src}
+                    srcSet={project.gallerySrcSet}
+                    sizes="(max-width: 640px) 100vw, 50vw"
+                    alt={`${project.title} screenshot ${i + 1}`}
+                    loading="lazy"
+                    decoding="async"
+                    width={800}
+                    height={450}
+                    className="w-full object-cover"
+                  />
                 </div>
               ))}
             </div>

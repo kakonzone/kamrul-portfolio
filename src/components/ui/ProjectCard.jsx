@@ -4,7 +4,7 @@ import Card from './Card';
 import Tag from './Tag';
 
 export default function ProjectCard({ project }) {
-  const { slug, category, title, shortDescription, tech = [], image } = project;
+  const { slug, category, title, shortDescription, tech = [], image, imageSrcSet, imageAlt } = project;
   const liveUrl = project.liveUrl?.trim();
 
   return (
@@ -17,8 +17,11 @@ export default function ProjectCard({ project }) {
         {image ? (
           <img
             src={image}
-            alt={title}
+            srcSet={imageSrcSet}
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            alt={imageAlt || title}
             loading="lazy"
+            decoding="async"
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
           />
         ) : null}

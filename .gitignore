@@ -5,3 +5,8 @@ dist
 .env
 .env.*
 verification/dist
+# Originals — the unscaled, unoptimised source PNGs for project thumbnails.
+# Lives outside src/ on purpose so Vite never bundles them. `npm run
+# optimize:images` reads from here and writes WebP-only variants to public/.
+originals/
+verification/
