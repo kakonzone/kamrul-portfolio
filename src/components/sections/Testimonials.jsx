@@ -40,7 +40,7 @@ function Avatar({ name, src }) {
 
 function Stars({ count = 5 }) {
   return (
-    <div className="flex items-center gap-1" aria-label={`${count} out of 5 stars`}>
+    <div className="flex items-center gap-1" role="img" aria-label={`${count} out of 5 stars`}>
       {Array.from({ length: count }).map((_, i) => (
         <Star key={i} size={18} fill="#facc15" color="#facc15" strokeWidth={0} aria-hidden="true" />
       ))}

@@ -12,8 +12,10 @@
 
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { siteUrl, siteUrlIsMissing, siteUrlLooksLikePlaceholder } from './build-info.mjs';
 
-const SITE = (process.env.VITE_SITE_URL || 'https://example.com').replace(/\/$/, '');
+// Same single source as canonical / og / twitter / JSON-LD (scripts/build-info.mjs).
+const SITE = siteUrlIsMissing ? 'https://example.com' : siteUrl;
 const ROOT = process.cwd();
 
 async function readText(rel) {

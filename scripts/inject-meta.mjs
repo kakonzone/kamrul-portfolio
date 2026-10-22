@@ -8,9 +8,10 @@
 
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { siteUrl, siteUrlRaw, siteUrlIsMissing, siteUrlLooksLikePlaceholder, build } from './build-info.mjs';
 
 const ROOT = process.cwd();
-const SITE = (process.env.VITE_SITE_URL || 'https://example.com').replace(/\/$/, '');
+const SITE = siteUrlIsMissing ? 'https://example.com' : siteUrl;
 const SITE_NAME = process.env.VITE_SITE_NAME || 'Kamrul · Portfolio';
 
 function getBetween(src, key, fallback = '') {
@@ -38,8 +39,45 @@ async function main() {
 
   let out = html;
 
-  // %VITE_SITE_URL% substitutions
-  out = out.split('%VITE_SITE_URL%').join(SITE);
+  // Single source of truth: replace every hardcoded absolute URL with the one
+  // derived from VITE_SITE_URL. This covers canonical, og:url, og:image,
+  // twitter:image and the JSON-LD url in one sweep, so they can never drift.
+  out = out
+    .split('%VITE_SITE_URL%')
+    .join(SITE)
+    // Match EVERY reserved example host, with or without a subdomain. The old
+    // pattern listed only `kamrul.example.com` and `example.com`, so the
+    // `https://kamrul.example.dev/` that index.html actually used was never
+    // matched and survived into the build — canonical, og:url, og:image and
+    // twitter:image stayed pinned to the placeholder while JSON-LD and the
+    // sitemap pointed somewhere else. One pattern now, so they cannot drift.
+    // The lookbehind stops a real host that merely ends in those letters
+    // (`myexample.com`) from being swallowed.
+    .replace(
+      /(?<![\w.@-])https?:\/\/(?:[a-z0-9-]+\.)*example\.(?:com|org|net|dev)\b/gi,
+      SITE,
+    );
+
+  // Build identity: an HTML comment (always) plus a <meta name="build"> that
+  // the footer reads when the page is loaded with ?debug=1. This is how you can
+  // tell a cached older deploy from the current one on a phone.
+  //
+  // IMPORTANT: this script rewrites index.html in place and runs on every
+  // build, so it must REPLACE any previously injected block rather than append.
+  // Otherwise repeated builds stack duplicate meta tags and grow the file.
+  out = out
+    // drop previously injected blocks (script comment + meta + inline script)
+    .replace(/\n\s*<!-- build:[\s\S]*?-->\n/g, '\n')
+    .replace(/\n\s*<meta name="build" content="[^"]*"\s*\/>\n/g, '\n')
+    .replace(/\n\s*<script>window\.__BUILD__=[^<]*?;<\/script>\n/g, '\n');
+
+  out = out.replace(
+    /<\/head>/,
+    `\n  <!-- build: ${build.builtAt} · commit ${build.commit} -->\n` +
+      `  <meta name="build" content="${escapeAttr(`${build.builtAt}|${build.commit}`)}" />\n` +
+      `  <script>window.__BUILD__={builtAt:${JSON.stringify(build.builtAt)},commit:${JSON.stringify(build.commit)},short:${JSON.stringify(build.short)}};</script>\n` +
+      `</head>`,
+  );
 
   // Site name in JSON-LD
   out = out.replace(
@@ -75,7 +113,11 @@ async function main() {
   );
 
   await writeFile(path.join(ROOT, 'index.html'), out);
-  console.log(`[inject-meta] wrote index.html with site=${SITE} name=${name}`);
+  const urlState =
+    siteUrlIsMissing || siteUrlLooksLikePlaceholder() ? ' (WARNING: VITE_SITE_URL not set!)' : '';
+  console.log(`[inject-meta] site=${SITE}${urlState}`);
+  console.log(`[inject-meta] build=${build.builtAt} commit=${build.short}`);
+  console.log('[inject-meta] wrote canonical, og:url, og:image, twitter:image and JSON-LD url from VITE_SITE_URL');
 }
 
 function escapeAttr(s) {

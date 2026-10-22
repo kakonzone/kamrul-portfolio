@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import SocialLinks from '../sections/SocialLinks';
 import { profile } from '../../data/profile';
 
@@ -22,6 +22,46 @@ export default function Footer() {
   const navigate = useNavigate();
   const isHome = location.pathname === '/';
   const year = new Date().getFullYear();
+
+  // Build identity, injected into index.html by scripts/inject-meta.mjs.
+  const build =
+    (typeof window !== 'undefined' && window.__BUILD__) || {
+      builtAt: 'unknown',
+      commit: 'unknown',
+      short: 'unknown',
+    };
+  // The debug line is opt-in: only when the URL carries ?debug=1.
+  const showBuild = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    return new URLSearchParams(window.location.search).get('debug') === '1';
+  }, []);
+
+  // Current FX decisions, mirrored from window.__fx by src/fx/index.js. No
+  // logic is duplicated here: the FX module already owns the decisions, so this
+  // only reads the published snapshot and re-reads it when `publish()` fires the
+  // `fx:state` event (on every decision change and on each fps window). The
+  // listener is registered ONLY under ?debug=1, so a normal visitor never
+  // subscribes and never re-renders for this.
+  const [fxState, setFxState] = useState(null);
+  useEffect(() => {
+    if (!showBuild) return undefined;
+    const read = () => setFxState(window.__fx ? { ...window.__fx } : null);
+    read();
+    window.addEventListener('fx:state', read);
+    return () => window.removeEventListener('fx:state', read);
+  }, [showBuild]);
+
+  const fxLine = (() => {
+    if (!showBuild || !fxState) return null;
+    const rings = fxState.ringsRunning
+      ? 'running'
+      : `stopped (${fxState.ringsReason || 'no reason recorded'})`;
+    const cursor = fxState.cursorOn
+      ? 'on'
+      : `off (${fxState.cursorReason || 'no reason recorded'})`;
+    const fps = fxState.fps > 0 ? Math.round(fxState.fps) : '--';
+    return `rings: ${rings} | cursor: ${cursor} | fps: ${fps}`;
+  })();
 
   const NAV_LINKS = useMemo(() => {
     const f = profile.sections || {};
@@ -61,8 +101,7 @@ export default function Footer() {
             href="/"
             onClick={handleHome}
             className="text-base font-bold tracking-tight text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-md px-1"
-            aria-label="Kamrul. — back to top"
-          >
+            >
             {profile.name}<span className="text-accent">.</span>
           </a>
 
@@ -86,6 +125,29 @@ export default function Footer() {
         <p className="mt-6 text-center text-xs text-muted">
           © {year} {profile.name}. All rights reserved.
         </p>
+
+        {/* Build identity — visible ONLY with ?debug=1 in the URL. This is how
+            you confirm on a phone that you are looking at the deploy you just
+            pushed and not a cached older copy. Both values are injected into
+            index.html at build time by scripts/inject-meta.mjs (which reads the
+            git hash, or the Cloudflare CI commit variable when git is absent). */}
+        {showBuild ? (
+          <>
+            <p className="mt-2 text-center font-mono text-[11px] text-muted/70" data-testid="build-id">
+              build {build.builtAt} · commit {build.short}
+              {build.commit === 'unknown' ? ' (commit unknown)' : ''}
+            </p>
+            {/* FX decisions — same ?debug=1 gate. Replaces the guesswork of
+                "is the ring spinning / is the halo on this device?" with the
+                live answer: rings, cursor and the last measured fps, plus the
+                reason whenever one of them is off. */}
+            {fxLine ? (
+              <p className="mt-1 text-center font-mono text-[11px] text-muted/70" data-testid="fx-debug">
+                {fxLine}
+              </p>
+            ) : null}
+          </>
+        ) : null}
       </div>
     </footer>
   );

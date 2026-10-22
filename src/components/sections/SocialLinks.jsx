@@ -1,10 +1,9 @@
-import { Github, Linkedin, Mail, Twitter } from 'lucide-react';
+import { Github, Linkedin, Mail } from 'lucide-react';
 
 // Map a social id from data to the lucide-react icon component.
 const ICONS = {
   github: Github,
   linkedin: Linkedin,
-  twitter: Twitter,
   email: Mail,
 };
 

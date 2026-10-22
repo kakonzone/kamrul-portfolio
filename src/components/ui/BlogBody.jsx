@@ -15,12 +15,18 @@ export default function BlogBody({ blocks = [] }) {
                 {block.text}
               </h2>
             );
-          case 'h3':
+          case 'h3': {
+            // Never skip a level. The page heading is an h1, so an h3 with no
+            // preceding h2 in this body would jump h1 -> h3. Until an h2 has
+            // appeared, render the block as an h2.
+            const hasH2Before = blocks.slice(0, i).some((b) => b?.type === 'h2');
+            const Heading = hasH2Before ? 'h3' : 'h2';
             return (
-              <h3 key={i} className="mt-8 text-lg font-semibold text-fg">
+              <Heading key={i} className="mt-8 text-lg font-semibold text-fg">
                 {block.text}
-              </h3>
+              </Heading>
             );
+          }
           case 'ul':
             return (
               <ul key={i} className="list-disc space-y-2 pl-6 text-muted">

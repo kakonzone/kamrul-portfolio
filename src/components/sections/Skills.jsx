@@ -1,5 +1,10 @@
 import SectionHeading from '../ui/SectionHeading';
 import { skillCategories, iconFor, brandColor, isThemeAware } from '../../data/skills';
+// The artwork is served straight from public/Animating_tree.webp, so it is
+// referenced by absolute URL and is never imported into the bundle — that also
+// keeps it out of Vite's hashed asset pipeline.
+// Original 6.6 MB GIF kept at src/assets/original/Animating_tree.original.gif
+// (not imported anywhere, so Vite never bundles it).
 
 function SkillChip({ name, iconKey }) {
   const Icon = iconFor(iconKey);
@@ -24,19 +29,48 @@ export default function Skills() {
       <div className="mx-auto max-w-6xl">
         <SectionHeading label="Skills" title="What I work with" />
 
-        <div className="mt-12 flex flex-col gap-10">
-          {skillCategories.map((category) => (
-            <div key={category.id}>
-              <p className="mb-5 text-xs font-semibold uppercase tracking-widest text-muted">
-                {category.title}
-              </p>
-              <div className="flex flex-wrap gap-3">
-                {category.skills.map((skill) => (
-                  <SkillChip key={skill.id} name={skill.name} iconKey={skill.id} />
-                ))}
-              </div>
+        {/* Two columns on wide screens: the skill groups on the left, the
+            animated tree on the right, aligned to the top and sticky so it stays
+            beside the chips while the taller chip column scrolls. Below 768px
+            `.skills-layout` flips to a column so the tree sits under the chips —
+            see the Skills layout block at the end of src/styles/index.css.
+
+            The `mt-12` that used to sit on the wrapper around the groups now
+            sits here instead, so the gap under the heading is unchanged. */}
+        <div className="skills-layout mt-12">
+          <div className="skills-left">
+            <div className="flex flex-col gap-10">
+              {skillCategories.map((category) => (
+                <div key={category.id}>
+                  <p className="mb-5 text-xs font-semibold uppercase tracking-widest text-muted">
+                    {category.title}
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    {category.skills.map((skill) => (
+                      <SkillChip key={skill.id} name={skill.name} iconKey={skill.id} />
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
+
+          <div className="skills-right">
+            {/* width/height give the browser an intrinsic aspect ratio so the box
+                is reserved before the file arrives. `.skills-gif` already supplies
+                the responsiveness (`width: 100%; height: auto` in both the desktop
+                rule and the ≤768px override), so no inline sizing is needed.
+                It is far below the fold, so it stays lazy. */}
+            <img
+              src="/Animating_tree.webp"
+              alt="Animated tree"
+              width={480}
+              height={270}
+              loading="lazy"
+              decoding="async"
+              className="skills-gif"
+            />
+          </div>
         </div>
       </div>
     </section>

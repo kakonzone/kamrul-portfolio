@@ -110,6 +110,28 @@ async function runEngine(browserType, engineName, mode) {
   // The bugfix script asserts the cursor nodes EXIST. On this headless host the
 // capability check lands on calm (SwiftShader) and the cursor is intentionally
 // not mounted. Force rich so the node-presence assertions are exercised.
+  await page.goto(SITE + '/?noguard=1', { waitUntil: 'networkidle' });
+  await page.evaluate(() => document.fonts.ready);
+  await page.waitForTimeout(500);
+  const ringDefaultA = await page.evaluate(() => ({
+    ringsStatic: document.documentElement.classList.contains('fx-rings-static'),
+    fxOn: document.documentElement.classList.contains('fx-on'),
+    t: [...document.querySelectorAll('.hero-rings i')].map(
+      (el) => getComputedStyle(el).transform,
+    ),
+  }));
+  await page.waitForTimeout(2500);
+  const ringDefaultB = await page.evaluate(() => ({
+    t: [...document.querySelectorAll('.hero-rings i')].map(
+      (el) => getComputedStyle(el).transform,
+    ),
+  }));
+  const changing = ringDefaultA.t.filter((v, i) => v !== ringDefaultB.t[i]).length;
+  log.push(
+    `[${engineName}/${mode}] DEFAULT rings (no fx flag): fx-on=${ringDefaultA.fxOn} ` +
+      `fx-rings-static=${ringDefaultA.ringsStatic} rotating=${changing}/3`,
+  );
+
   await page.goto(SITE + '/?fx=rich&noguard=1', { waitUntil: 'networkidle' });
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(300);

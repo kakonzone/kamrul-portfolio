@@ -40,7 +40,21 @@ export default function ProjectDetail() {
         {/* Hero image */}
         <div className="mt-8 overflow-hidden rounded-2xl border border-line">
           {project.image ? (
-            <img src={project.image} alt={project.title} className="aspect-video w-full object-cover" />
+            <picture>
+              <source type="image/webp" srcSet={project.imageSrcSet} sizes="(max-width: 1024px) 100vw, 1024px" />
+              <img
+                src={project.image}
+                srcSet={project.imageSrcSet}
+                sizes="(max-width: 1024px) 100vw, 1024px"
+                alt={project.imageAlt || project.title}
+                width={800}
+                height={450}
+                loading="eager"
+                fetchpriority="high"
+                decoding="async"
+                className="aspect-video w-full object-cover"
+              />
+            </picture>
           ) : null}
         </div>
 

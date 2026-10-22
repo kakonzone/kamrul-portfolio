@@ -234,7 +234,34 @@ for (const [name, opts] of [
   if (r.idle) {
     lines.push(`  idle frames: ${JSON.stringify(r.idle)}`);
     const limit = calm ? BUDGET.heroIdleP95Calm : BUDGET.heroIdleP95Rich;
-    check(`hero idle p95 frame time (${calm ? 'calm' : 'rich'})`, r.idle.p95, limit);
+    const ok = check(`hero idle p95 frame time (${calm ? 'calm' : 'rich'})`, r.idle.p95, limit);
+    // Item 2 of the follow-up spec made ring rotation unconditional, so the
+    // forced-rich runs now composite three ring layers on every frame. On a
+    // SOFTWARE rasteriser (which is what headless Chromium reports) that cannot
+    // meet a 20ms p95 no matter how the CSS is written — the work is real
+    // compositing, not wasted paint. Rather than quietly widening the budget,
+    // report the failure AND state plainly whether the runtime guard would have
+    // caught it on a real device. A real GPU is expected to pass 20ms; this host
+    // cannot, and that is a property of the host.
+    if (!ok && !calm) {
+      lines.push(
+        '  NOTE  rich p95 over budget on this host. Rings now always animate, so',
+      );
+      lines.push(
+        '        forced-rich composites 3 layers/frame. This host is SwiftShader',
+      );
+      lines.push(
+        '        (software) — see verification/perf/ for the real-GPU comparison.',
+      );
+      if (r.mode.fx && r.mode.fx.rings === 'static') {
+        lines.push('        runtime guard had already frozen the rings — OK on device.');
+      } else if (r.mode.fx) {
+        lines.push(
+          `        runtime guard measured ${r.mode.fx.fps ?? '?'}fps and would freeze ` +
+            'the rings on a real device that cannot sustain this.',
+        );
+      }
+    }
   } else {
     lines.push('  idle frames: (no frames captured)');
     failures++;

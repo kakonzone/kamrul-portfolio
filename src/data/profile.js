@@ -1,15 +1,12 @@
-// The hero photo is served from public/ (responsive WebP + PNG fallback),
-// not bundled, so the original PNG never enters the JS bundle. See
-// scripts/optimize-images.mjs and the <picture> element in HeroPhoto.jsx.
+// The hero photo is served from public/ as WebP only, not bundled, so the
+// original PNG never enters the JS bundle. The saturation boost that used to be
+// `filter: saturate(1.05)` in CSS is baked into the generated file by
+// scripts/optimize-images.mjs — there is no runtime CSS filter any more.
+//
+// The source portrait is 442x564, so a single 442w variant is generated (we
+// never upscale). On a 2x display the browser renders it at its natural size.
 const photo = {
-  webp: [
-    { src: '/profile-442.webp', w: 442 },
-    { src: '/profile-884.webp', w: 884 },
-  ],
-  png: [
-    { src: '/profile-442.png', w: 442 },
-    { src: '/profile-884.png', w: 884 },
-  ],
+  webp: [{ src: '/profile-442.webp', w: 442 }],
   width: 442,
   height: 564,
   alt: 'Portrait of Kamrul',
@@ -18,11 +15,11 @@ const photo = {
 // Single source of truth for the resume file. Both the hero "Download Resume"
 // button and the Resume section button read this constant. Drop your PDF at
 // public/resume.pdf — `npm run check:content` warns while it is missing.
-export const RESUME_URL = '/resume.pdf';
+export const RESUME_URL = 'https://drive.google.com/file/d/1nEZ4pxSFmml58-O94jX7wKHJyzGJSZtH/view?usp=sharing';
 
 export const profile = {
-  name: 'Kamrul',
-  firstName: 'Kamrul',
+  name: 'Kamrul Hasan ',
+  firstName: 'Kamrul Hasan',
   eyebrow: 'Software Engineer & App Developer',
   photo,
   resumeUrl: RESUME_URL,

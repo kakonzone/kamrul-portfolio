@@ -40,8 +40,23 @@ function forcedMode() {
   }
 }
 
+// `window.__fx` is read by the perf gate and by the ?debug=1 footer, so the
+// shape is deliberately flat: scalar booleans, numbers and short strings.
+//   mode/reason     — the rich-extras decision (`.fx-on`)
+//   fps             — last measured frames per second from the ring guard
+//   rings/…Running  — whether the hero rings are rotating, and why not
+//   cursorOn/…Reason— whether the custom cursor is allowed to run, and why not
 export const fx = {
-  state: { mode: 'calm', reason: 'not-checked-yet', fps: 0 },
+  state: {
+    mode: 'calm',
+    reason: 'not-checked-yet',
+    fps: 0,
+    rings: 'rotating',
+    ringsRunning: true,
+    ringsReason: 'default-on',
+    cursorOn: false,
+    cursorReason: 'not-checked-yet',
+  },
 };
 
 // --- small helpers -------------------------------------------------------
@@ -62,8 +77,13 @@ function log(reason, extra = {}) {
 
 function publish() {
   // Exposed in every build so the perf gate can assert which mode was chosen
-  // and why. Three small fields, nothing sensitive.
+  // and why, and so the ?debug=1 footer can print the current decisions. A few
+  // small fields, nothing sensitive.
   window.__fx = { ...fx.state };
+  // Same event the existing `fx:mode` listeners already use for `fx.state`
+  // snapshots, but it carries no payload and fires on every publish — including
+  // the periodic fps refresh. The footer is the only subscriber.
+  window.dispatchEvent(new Event('fx:state'));
 }
 
 function prefersReducedMotion() {
@@ -99,13 +119,16 @@ function hasRealGpu() {
     const lose = gl.getExtension('WEBGL_lose_context');
     if (lose) lose.loseContext();
 
-    // Only a positive identification counts. Guard against the empty string and
-    // against generic values that some privacy browsers substitute.
+    // Item 2 of the follow-up spec: treat ONLY strings that clearly say
+    // SwiftShader, llvmpipe, "Software Renderer" or "Microsoft Basic Render" as
+    // software rendering. An unreadable, empty, generic or randomised string
+    // (Brave Shields fingerprint protection does exactly this) must NOT be
+    // treated as "no GPU" — decide from the frame probe and the guard instead.
     const normalised = renderer.trim();
     if (!normalised) return { ok: null, why: 'renderer-string-empty' };
 
     const software =
-      /swiftshader|llvmpipe|softpipe|software rasterizer|software renderer|microsoft basic render|generic renderer/i.test(
+      /swiftshader|llvmpipe|software renderer|microsoft basic render/i.test(
         normalised,
       );
     return software
@@ -147,6 +170,35 @@ function hasFinePointer() {
   }
 }
 
+// (f) cursor eligibility — reported for the ?debug=1 footer, never a veto.
+//
+// The custom cursor is OWNED by useCursorFollower and decides for itself: it
+// only mounts when the device has BOTH `(any-pointer: fine)` AND
+// `(any-hover: hover)` (or when matchMedia is unavailable), and it bails out
+// under `?fx=calm`. That is an AND where `hasFinePointer()` above is an OR, and
+// the two must not be merged: the OR above only decides whether the rich EXTRAS
+// (blob / dots) are worth having, while the cursor needs a real pointing device.
+//
+// Scope limit, stated plainly: the hook's own measured-lag teardown (frame time
+// above 25ms sustained for 3s) happens inside that hook and is deliberately not
+// observable from this module. So `cursorOn` means "the cursor is allowed to
+// run", not "a halo is painted right now", and `cursorReason` names the signal
+// that was actually available to decide it.
+function cursorEligibility() {
+  const forced = forcedMode();
+  if (forced === 'calm') return { on: false, reason: 'forced-by-url:fx=calm' };
+  if (typeof window === 'undefined') return { on: false, reason: 'no-window' };
+  try {
+    const fine = window.matchMedia('(any-pointer: fine)').matches;
+    const hover = window.matchMedia('(any-hover: hover)').matches;
+    if (fine && hover) return { on: true, reason: 'fine-pointer+hover' };
+    if (!fine) return { on: false, reason: 'no-fine-pointer' };
+    return { on: false, reason: 'no-hover' };
+  } catch {
+    return { on: true, reason: 'matchmedia-unavailable' };
+  }
+}
+
 // (e) ~1s rAF frame probe. Median frame time above 20ms means "not ready".
 function frameProbe(ms = 1000) {
   return new Promise((resolve) => {
@@ -182,8 +234,24 @@ function frameProbe(ms = 1000) {
 
 // --- mode switching ------------------------------------------------------
 
+// Ring rotation is CSS-driven and on by default (see index.css). This class is
+// the ONLY thing that stops it. It is independent of `.fx-on` so a capable
+// device that the capability gate downgrades still keeps rotating rings.
+function setRingsStatic(isStatic, reason) {
+  document.documentElement.classList.toggle('fx-rings-static', isStatic);
+  fx.state.rings = isStatic ? 'static' : 'rotating';
+  fx.state.ringsRunning = !isStatic;
+  if (reason) fx.state.ringsReason = reason;
+}
+
+function setCursorState() {
+  const { on, reason } = cursorEligibility();
+  fx.state.cursorOn = on;
+  fx.state.cursorReason = reason;
+}
+
 function calm(reason) {
-  fx.state = { mode: 'calm', reason, fps: fx.state.fps ?? 0 };
+  fx.state = { ...fx.state, mode: 'calm', reason };
   document.documentElement.classList.remove('fx-on');
   publish();
   log(`calm: ${reason}`);
@@ -192,70 +260,110 @@ function calm(reason) {
 }
 
 function rich(reason, fps) {
-  fx.state = { mode: 'rich', reason, fps };
+  fx.state = { ...fx.state, mode: 'rich', reason, fps };
   document.documentElement.classList.add('fx-on');
   publish();
   log(`rich: ${reason} @${fps ?? '?'}fps`);
   window.dispatchEvent(new CustomEvent('fx:mode', { detail: { mode: 'rich', reason } }));
 }
 
-// --- runtime guard -------------------------------------------------------
+// --- runtime guard (rings) -----------------------------------------------
+//
+// LENIENT BY DESIGN. Ring rotation is a transform-only animation that costs
+// essentially nothing, so the bar for stopping it is deliberately low and the
+// evidence bar is high:
+//   * the first WARMUP_MS after load is ignored entirely (fonts, layout, decode)
+//   * any window that overlapped document.hidden is discarded entirely, so the
+//     time a tab spends throttled in the background can never be divided into a
+//     visible frame count
+//   * we require a sustained sub-threshold average across a full 3s window
+//   * AND two consecutive bad windows, because rAF cadence is a WHOLE-PAGE
+//     signal: one slow window is far more likely to be a large image finishing
+//     its decode or the visitor's first big scroll than a device that cannot
+//     keep up
+//   * the threshold is 20fps
+// On a normal laptop with a GPU this never trips.
 
 let guardRaf = 0;
 let guardStop = false;
 
+const GUARD = {
+  WINDOW_MS: 3000,     // spec: "sustained frame rate below 20 fps for 3 seconds"
+  WARMUP_MS: 1000,     // spec: "ignore the first second after load"
+  MIN_FPS: 20,         // spec: "below 20 fps"
+  LONG_FRAME_MS: 100,  // a frame this long is 10fps — treat as a stall
+  STALLS_PER_WINDOW: 3,
+  LOW_WINDOWS_BEFORE_STOP: 2, // one bad window is not enough evidence
+};
+
 function startRuntimeGuard() {
   guardStop = false;
-  const WINDOW_MS = 2000;
-  let windowStart = performance.now();
+  const t0 = performance.now();
+  let windowStart = t0 + GUARD.WARMUP_MS;
   let frames = 0;
-  let longFrames = 0;
-  let consecutiveLong = 0;
+  let stalls = 0;
+  let lowWindows = 0;
   let last = 0;
 
   const tick = (now) => {
     if (guardStop) return;
+
+    // Hidden tabs are throttled to ~1fps by every browser. Sampling there would
+    // produce a fake "sub-20fps" reading, so those frames never count — and the
+    // window in progress is thrown away entirely, so the hidden time can never
+    // end up in the denominator of the next window. Returning restarts the
+    // window and breaks any run of consecutive bad readings.
+    if (document.hidden) {
+      last = 0;
+      windowStart = now;
+      frames = 0;
+      stalls = 0;
+      lowWindows = 0;
+      guardRaf = requestAnimationFrame(tick);
+      return;
+    }
+
     if (last) {
       const dt = now - last;
-      frames++;
-      if (dt > 50) {
-        longFrames++;
-        consecutiveLong++;
-      } else {
-        consecutiveLong = 0;
+      // Only count frames inside the measurement window (post-warmup).
+      if (now >= windowStart) {
+        frames++;
+        if (dt >= GUARD.LONG_FRAME_MS) stalls++;
       }
     }
     last = now;
 
     const elapsed = now - windowStart;
-    if (elapsed >= WINDOW_MS) {
+    if (elapsed >= GUARD.WINDOW_MS) {
       const avgFps = (frames / elapsed) * 1000;
-      // Two independent downgrade signals: sustained low fps, or repeated
-      // long frames. Either is enough — a struggling device should get the
-      // calm version rather than a choppy rich one.
-      if (avgFps < 40 || consecutiveLong >= 3) {
-        calm(
+      const bad = avgFps < GUARD.MIN_FPS || stalls >= GUARD.STALLS_PER_WINDOW;
+      // Require the same verdict twice in a row before freezing anything for the
+      // rest of the session; a single slow window is usually just a hitch.
+      lowWindows = bad ? lowWindows + 1 : 0;
+      if (bad && lowWindows >= GUARD.LOW_WINDOWS_BEFORE_STOP) {
+        setRingsStatic(
+          true,
           `runtime-guard: ${avgFps.toFixed(1)}fps over ${(elapsed / 1000).toFixed(1)}s` +
-            (consecutiveLong >= 3 ? `, ${consecutiveLong} long frames` : ''),
+            (stalls >= GUARD.STALLS_PER_WINDOW ? `, ${stalls} stalls` : ''),
         );
-        try {
-          sessionStorage.setItem(SESSION_KEY, 'calm');
-        } catch {}
-        return;
+        publish();
+        // Rich extras (cursor / dots / blob) still get the stricter treatment,
+        // but only if we are currently in rich mode.
+        if (fx.state.mode === 'rich') {
+          calm(
+            `runtime-guard: ${avgFps.toFixed(1)}fps over ${(elapsed / 1000).toFixed(1)}s` +
+              (stalls >= GUARD.STALLS_PER_WINDOW ? `, ${stalls} stalls` : ''),
+          );
+        }
+        return; // stop sampling; decision made
       }
       fx.state = { ...fx.state, fps: +avgFps.toFixed(1) };
       publish();
       windowStart = now;
       frames = 0;
-      longFrames = 0;
+      stalls = 0;
     }
 
-    // Only sample while something is actually on screen.
-    if (document.hidden) {
-      last = 0;
-      guardRaf = requestAnimationFrame(tick);
-      return;
-    }
     guardRaf = requestAnimationFrame(tick);
   };
 
@@ -294,9 +402,11 @@ export function initFx() {
   if (started) return;
   started = true;
 
-  // Default is calm: <html> has no .fx-on until we decide otherwise, and the
-  // base CSS has no animations at all.
+  // Rings are ON by default (CSS). `.fx-on` (rich extras: cursor/dots/blob) is
+  // off until decided. The ring guard runs regardless of rich mode.
   document.documentElement.classList.remove('fx-on');
+  setRingsStatic(false, 'default-on');
+  setCursorState();
   publish();
 
   watchHeroVisibility();
@@ -305,39 +415,42 @@ export function initFx() {
     document.documentElement.classList.toggle('fx-paused', document.hidden);
   });
 
-  // Respect a decision already made in this session.
+  // Reduced motion: rings must be static. CSS also handles this, but setting the
+  // class keeps the runtime state honest for the debug footer.
+  if (prefersReducedMotion()) {
+    setRingsStatic(true, 'prefers-reduced-motion');
+  }
+
+  // Respect a decision already made in this session: if the guard downgraded
+  // rich extras earlier in this session, do not immediately re-enable them.
+  // This does NOT freeze the rings — they are independent and cheap.
+  let sessionCalm = false;
   try {
-    const prior = sessionStorage.getItem(SESSION_KEY);
-    if (prior === 'calm') {
-      calm('session-preference');
-      return;
-    }
+    sessionCalm = sessionStorage.getItem(SESSION_KEY) === 'calm';
   } catch {}
 
   // Test override (?fx=rich / ?fx=calm) short-circuits the automatic path.
+  // `?fx=calm` also freezes rings so screenshots are deterministic.
   const forced = forcedMode();
+  const noguard = new URLSearchParams(location.search).get('noguard') === '1';
   if (forced === 'calm') {
+    // Test-only override for rich extras. Rings are NOT frozen here — this flag
+    // exists to make cursor/dot/blob screenshots deterministic, and the ring
+    // animation must stay representative.
     calm('forced-by-url');
     return;
   }
   if (forced === 'rich') {
     rich('forced-by-url', null);
-    // `?fx=rich` (optionally `&noguard=1`) is a test hook for measuring the
-    // rich path on a host whose capability check would — correctly — choose
-    // calm. With `&noguard=1` the runtime guard is suppressed so the effect can
-    // be measured without an immediate auto-downgrade. Real visitors never set
-    // these flags.
-    if (new URLSearchParams(location.search).get('noguard') !== '1') {
-      startRuntimeGuard();
-    }
+    if (!noguard) startRuntimeGuard();
     return;
   }
 
   // Yield to the browser so first paint and the initial interaction are never
-  // delayed by this decision.
+  // delayed by this decision. Rings keep rotating throughout.
   const run = async () => {
-    // Hard, unambiguous vetoes only.
     if (prefersReducedMotion()) {
+      setRingsStatic(true, 'prefers-reduced-motion');
       calm('prefers-reduced-motion');
       try {
         sessionStorage.setItem(SESSION_KEY, 'calm');
@@ -345,29 +458,41 @@ export function initFx() {
       return;
     }
 
-    // Touch-only device: there is no pointer for a cursor to follow.
-    if (!hasFinePointer()) {
-      calm('no-fine-pointer');
-      return;
-    }
-
+    // Rings are NEVER frozen by a capability check. The only things that stop
+    // them are: prefers-reduced-motion, the measured <30fps guard, and being
+    // paused (hero off-screen / tab hidden). Everything below this point only
+    // decides the RICH EXTRAS (cursor / dots / blob), which stay independent.
     const gpu = hasRealGpu();
     const cores = coreCountOk();
     const save = saveDataOk();
 
-    // Only a CONFIRMED software rasteriser vetoes here.
     if (gpu.ok === false) {
+      // Software renderer: rich extras off. Rings keep rotating — the runtime
+      // guard decides within ~3s whether this device can actually sustain them.
       calm(gpu.why);
       try {
         sessionStorage.setItem(SESSION_KEY, 'calm');
       } catch {}
+      startRuntimeGuard();
       return;
     }
 
-    // Everything else is advisory. Enable rich mode and let the runtime guard
-    // measure reality — including event-to-frame pointer latency — and turn it
-    // off again if this device genuinely cannot keep up.
+    // Rich extras (cursor / dots / blob): measured decision. The cursor's own
+    // latency guard is the real off-switch; this just gets it started.
+    if (!hasFinePointer()) {
+      calm('no-fine-pointer');
+      startRuntimeGuard();
+      return;
+    }
+
     const probe = await frameProbe(600);
+    if (sessionCalm) {
+      // The guard already downgraded rich extras earlier this session. Stay calm
+      // (cursor off) but keep the rings rotating.
+      calm('session-preference');
+      startRuntimeGuard();
+      return;
+    }
     rich(
       `capability-ok (gpu:${gpu.why}, ${cores.why}, ${save.why}, ${probe.why})`,
       probe.fps,

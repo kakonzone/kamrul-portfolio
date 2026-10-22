@@ -20,10 +20,10 @@ export default function HeroPhoto({ photo, alt }) {
   const h = photo.height;
   const sizes = '(max-width: 768px) 80vw, 460px';
 
+  const webpSrcSet = photo.webp.map((s) => `${s.src} ${s.w}w`).join(', ');
   const webpSources = photo.webp.map((s) => (
     <source key={s.src} type="image/webp" srcSet={`${s.src} ${s.w}w`} sizes={sizes} />
   ));
-  const pngSrcSet = photo.png.map((s) => `${s.src} ${s.w}w`).join(', ');
 
   return (
     <div className="hero-photo relative mx-auto w-full max-w-[460px] aspect-[415/480]">
@@ -48,21 +48,16 @@ export default function HeroPhoto({ photo, alt }) {
         <picture>
           {webpSources}
           <img
-            src={photo.png[0].src}
-            srcSet={pngSrcSet}
+            src={photo.webp[0].src}
+            srcSet={webpSrcSet}
             sizes={sizes}
             alt={alt}
             width={w}
             height={h}
             loading="eager"
-            fetchPriority="high"
+            fetchpriority="high"
             decoding="async"
             className="absolute inset-0 h-full w-full object-cover object-top"
-            // A STATIC filter on a STATIC image. The rings above are separate
-            // siblings animated with transform-only, so rotating them never
-            // invalidates this image or re-runs the filter. Verified with a CDP
-            // trace — see verification/perf/saturate-cost.md.
-            style={{ filter: 'saturate(1.05)' }}
           />
         </picture>
       </div>

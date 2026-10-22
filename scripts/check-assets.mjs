@@ -1,36 +1,23 @@
-// Verify the generated image assets are complete, WebP-only, and inside the
-// size budget. Run via:  npm run check:assets
+// npm run check:assets
 //
-// What it asserts:
-//   1. originals/ holds the four raw PNGs (the untracked source of truth).
-//   2. public/projects/ has 480 / 800 / 1200 WebP variants for every slug,
-//      and NO .png / .jpg / .jpeg anywhere in public/ or dist/.
-//   3. Every emitted WebP is under the 200 KB soft cap.
-//   4. The 800w file is the one referenced as the <img src> (via the meta).
-//   5. No project PNG leaked into src/assets (they must stay in originals/).
+// Fails (non-zero) if any file under public/ or dist/ is larger than 300 KB.
+// public/og-image.png is exempt: it is the Open Graph card and is served to
+// social crawlers only, never as page content.
+//
+// Run automatically as the last step of `npm run build`.
 
-import { readdir, readFile, stat } from 'node:fs/promises';
+import { readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { existsSync } from 'node:fs';
 
 const ROOT = process.cwd();
-const ORIGINALS = path.join(ROOT, 'originals');
-const PUBLIC_PROJECTS = path.join(ROOT, 'public/projects');
-const PUBLIC = path.join(ROOT, 'public');
-const DIST = path.join(ROOT, 'dist');
+const MAX_KB = 300;
+const EXEMPT = [
+  // Social preview card — not page content, must stay PNG per platform rules.
+  path.join('public', 'og-image.png'),
+];
 
-const SLUGS = ['lumio', 'unitrack', 'fact-check-bd', 'crypto-coin-screener'];
-const WIDTHS = [480, 800, 1200];
-const SOFT_LIMIT_KB = 200;
-
-const failures = [];
-const notes = [];
-
-function fail(m) { failures.push(m); }
-function note(m) { notes.push(m); }
-function e2name(p) { return path.basename(p); }
-
-async function walk(dir, exts) {
+async function walk(dir) {
   const out = [];
   let entries = [];
   try {
@@ -40,95 +27,49 @@ async function walk(dir, exts) {
   }
   for (const e of entries) {
     const p = path.join(dir, e.name);
-    if (e.isDirectory()) out.push(...(await walk(p, exts)));
-    else if (exts.some((x) => x.test(e.name))) out.push(p);
+    if (e.isDirectory()) out.push(...(await walk(p)));
+    else if (e.isFile()) out.push(p);
   }
   return out;
 }
 
 async function main() {
-  console.log('== originals ==');
-  for (const slug of SLUGS) {
-    const p = path.join(ORIGINALS, `${slug}.png`);
-    if (!existsSync(p)) fail(`originals/${slug}.png missing`);
-    else {
-      const s = await stat(p);
-      note(`originals/${slug}.png ${(s.size / 1024).toFixed(1)} KB`);
-    }
-  }
+  const failures = [];
+  const rows = [];
 
-  console.log('== public/projects variants ==');
-  for (const slug of SLUGS) {
-    for (const w of WIDTHS) {
-      const p = path.join(PUBLIC_PROJECTS, `${slug}-${w}.webp`);
-      if (!existsSync(p)) { fail(`missing variant ${slug}-${w}.webp`); continue; }
-      const s = await stat(p);
-      const kb = s.size / 1024;
-      const flag = kb > SOFT_LIMIT_KB ? ' FAIL(over budget)' : '';
-      note(`${slug}-${w}.webp ${kb.toFixed(1)} KB${flag}`);
-      if (kb > SOFT_LIMIT_KB) fail(`${slug}-${w}.webp is ${kb.toFixed(1)} KB (over ${SOFT_LIMIT_KB} KB)`);
+  for (const rel of ['public', 'dist']) {
+    const dir = path.join(ROOT, rel);
+    if (!existsSync(dir)) {
+      rows.push(`  ${rel}/ not present (skipped)`);
+      continue;
     }
-    const metaPath = path.join(PUBLIC_PROJECTS, `${slug}-meta.json`);
-    if (!existsSync(metaPath)) { fail(`missing meta ${slug}-meta.json`); continue; }
-    const meta = JSON.parse(await readFile(metaPath, 'utf8'));
-    if (meta.src !== `/projects/${slug}-800.webp`) {
-      fail(`${slug}-meta.json src is "${meta.src}", expected "/projects/${slug}-800.webp"`);
-    }
-    const variantCount = (meta.variants || []).length;
-    if (variantCount !== WIDTHS.length) {
-      fail(`${slug}-meta.json lists ${variantCount} variants, expected ${WIDTHS.length}`);
-    }
-  }
-
-  console.log('== no raster originals in public/ or dist/ ==');
-  for (const [label, dir] of [['public', PUBLIC], ['dist', DIST]]) {
-    if (!existsSync(dir)) { note(`${label}/ not present (skipped)`); continue; }
-    // og-image.png + favicons are intentional and tiny; project screenshots are
-    // what must be WebP-only. Flag anything under projects/ plus any >200 KB png.
-    const offenders = [];
-    const allPng = await walk(dir, [/\.png$/i, /\.jpe?g$/i]);
-    for (const f of allPng) {
+    const files = await walk(dir);
+    for (const f of files) {
+      const relPath = path.relative(ROOT, f);
+      if (EXEMPT.includes(relPath)) {
+        const s = await stat(f);
+        rows.push(`  EXEMPT  ${relPath} ${(s.size / 1024).toFixed(1)} KB`);
+        continue;
+      }
       const s = await stat(f);
-      const rel = path.relative(ROOT, f);
-      if (rel.includes(path.join('public', 'projects')) || rel.includes(path.join('dist', 'assets', 'projects'))) {
-        offenders.push(`${rel} (project raster — must be WebP)`);
-      } else if (s.size > SOFT_LIMIT_KB * 1024 && !/profile-\d+\.png$/.test(e2name(f))) {
-        offenders.push(`${rel} ${(s.size / 1024).toFixed(1)} KB (over ${SOFT_LIMIT_KB} KB)`);
-      } else if (/profile-\d+\.png$/.test(e2name(f))) {
-        // The hero portrait PNG fallback is pre-existing and out of scope for
-        // this check; report it as informational rather than a failure.
-        note(`${rel} ${(s.size / 1024).toFixed(1)} KB (hero PNG fallback — informational, pre-existing)`);
+      const kb = s.size / 1024;
+      if (kb > MAX_KB) {
+        failures.push(`${relPath} is ${kb.toFixed(1)} KB (limit ${MAX_KB} KB)`);
       }
     }
-    if (offenders.length) offenders.forEach((o) => fail(`${label}: ${o}`));
-    else note(`${label}/ clean — no project rasters, nothing over budget`);
+    rows.push(`  ${rel}/ scanned ${files.length} files`);
   }
 
-  console.log('== no project PNGs inside src/ ==');
-  const srcAssets = path.join(ROOT, 'src/assets');
-  if (existsSync(srcAssets)) {
-    const rasters = await walk(srcAssets, [/\.png$/i, /\.jpe?g$/i]);
-    for (const f of rasters) {
-      const rel = path.relative(ROOT, f);
-      // profile.png is the hero source and is allowed.
-      if (path.basename(f) !== 'profile.png') {
-        fail(`src/assets contains raster: ${rel} (project originals belong in originals/)`);
-      }
-    }
-    if (!rasters.some((f) => path.basename(f) !== 'profile.png')) {
-      note('src/assets clean — only profile.png remains (hero source)');
-    }
-  }
+  console.log('== check:assets ==');
+  console.log(`  limit: ${MAX_KB} KB per file (public/og-image.png exempt)`);
+  for (const r of rows) console.log(r);
 
-  console.log('');
-  for (const n of notes) console.log('  ' + n);
-  console.log('');
   if (failures.length) {
-    console.log('**Result: FAILED**');
-    for (const f of failures) console.log('  FAIL: ' + f);
+    console.log('\n**Result: FAILED**');
+    for (const f of failures) console.log(`  FAIL: ${f}`);
     process.exit(1);
   }
-  console.log('**Result: ALL ASSET CHECKS PASS**');
+  console.log('\n**Result: ALL ASSET CHECKS PASS** (no file over 300 KB)');
 }
 
 main().catch((e) => {

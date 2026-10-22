@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/generate-sitemap.mjs && node scripts/inject-meta.mjs && vite build",
+    "build": "node scripts/generate-sitemap.mjs && node scripts/inject-meta.mjs && vite build && npm run check:assets",
     "preview": "vite preview",
     "check:content": "node scripts/check-content.mjs",
     "check:assets": "node scripts/check-assets.mjs",

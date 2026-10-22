@@ -16,6 +16,7 @@
 import { readFile, stat } from 'node:fs/promises';
 import { glob } from 'node:fs/promises';
 import path from 'node:path';
+import { siteUrl, siteUrlRaw, siteUrlIsMissing, siteUrlLooksLikePlaceholder } from './build-info.mjs';
 
 const ROOT = process.cwd();
 const SCAN_PATHS = ['src/data/*.js'];
@@ -115,9 +116,27 @@ if (process.argv.includes('--json')) {
   }
 }
 
-// In default mode, exit non-zero so CI / pre-deploy catches the placeholders
-// and the missing assets. Pass --warning to exit 0 instead (useful while
-// intentionally still drafting).
+// ---------------------------------------------------------------------------
+// Site URL guard (item 6 of the follow-up spec).
+// The canonical link, og:url, og:image, twitter:image, JSON-LD url, sitemap.xml
+// and robots.txt all read VITE_SITE_URL via scripts/build-info.mjs. If it is
+// unset or still points at a reserved placeholder domain, this check FAILS so a
+// production build can never be published with example.com in it.
+// ---------------------------------------------------------------------------
+const siteUrlProblem = siteUrlIsMissing || siteUrlLooksLikePlaceholder();
+if (siteUrlProblem) {
+  console.log('');
+  console.log('[check:content] FAIL — VITE_SITE_URL is missing or still a placeholder domain.');
+  console.log(`[check:content]   current value: ${siteUrlRaw || '(unset)'}`);
+  console.log('[check:content]   This drives canonical, og:url, og:image, twitter:image,');
+  console.log('[check:content]   JSON-LD url, sitemap.xml and robots.txt.');
+  console.log('[check:content]   Set it before building, e.g.:');
+  console.log('[check:content]     VITE_SITE_URL=https://your-domain.dev npm run build');
+  console.log('[check:content]   (pass --warning to downgrade this to a warning while drafting)');
+}
+
+// In default mode, exit non-zero so CI / pre-deploy catches the placeholders,
+// the missing assets and the site URL. Pass --warning to exit 0 instead.
 const soft = process.argv.includes('--warning');
-const problems = all.length + missingAssets.length;
+const problems = all.length + missingAssets.length + (siteUrlProblem ? 1 : 0);
 process.exit(problems === 0 || soft ? 0 : 1);

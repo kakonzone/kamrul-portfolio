@@ -33,11 +33,23 @@ import sharp from 'sharp';
 const ROOT = process.cwd();
 const ORIGINALS = path.join(ROOT, 'originals');
 const PUBLIC_PROJECTS = path.join(ROOT, 'public/projects');
+const PUBLIC = path.join(ROOT, 'public');
 const REPORT = path.join(ROOT, 'verification/image-optimization.log');
 
 const TARGET_WIDTHS = [480, 800, 1200];
 const WEBP_QUALITY = 80;        // spec: "about 80"
 const SOFT_LIMIT_KB = 200;      // spec: "each under 200 KB"
+
+// The hero portrait used to carry `filter: saturate(1.05)` as a CSS rule. Item 5
+// of the follow-up spec says: bake the boost into the generated file instead, so
+// there is no runtime filter on the hero image at all. Same value, applied once
+// at build time.
+// The source portrait is 442x564, so the only variant we can produce is 442w.
+// We never upscale, so 442 is the single entry. Anything wider in public/ is a
+// stale artefact from an earlier run and is deleted by buildHero().
+const HERO_SLUG = 'profile';
+const HERO_SATURATE = 1.05;
+const HERO_WIDTHS = [442];
 
 async function listOriginals(dir) {
   const out = [];
@@ -55,13 +67,72 @@ async function listOriginals(dir) {
   return out.sort((a, b) => a.localeCompare(b));
 }
 
+// Hero portrait: saturate baked in, WebP only, written to public/profile-<w>.webp.
+// No PNG is produced — the CSS no longer needs a non-WebP fallback because every
+// target browser supports WebP.
+async function buildHero() {
+  const src = path.join(ORIGINALS, `${HERO_SLUG}.png`);
+  let beforeBytes;
+  try {
+    beforeBytes = (await stat(src)).size;
+  } catch {
+    return { skipped: 'originals/profile.png not found' };
+  }
+
+  const meta = await sharp(src).metadata();
+  const produced = [];
+  for (const w of HERO_WIDTHS) {
+    if (w > meta.width) continue;
+    const out = path.join(PUBLIC, `${HERO_SLUG}-${w}.webp`);
+    let quality = WEBP_QUALITY;
+    let buf = await sharp(src)
+      .resize({ width: w, withoutEnlargement: true, fit: 'inside' })
+      .modulate({ saturation: HERO_SATURATE })
+      .webp({ quality })
+      .toBuffer();
+    while (buf.byteLength / 1024 > SOFT_LIMIT_KB && quality > 60) {
+      quality -= 5;
+      buf = await sharp(src)
+        .resize({ width: w, withoutEnlargement: true, fit: 'inside' })
+        .modulate({ saturation: HERO_SATURATE })
+        .webp({ quality })
+        .toBuffer();
+    }
+    await writeFile(out, buf);
+    const s = await stat(out);
+    produced.push({ file: path.relative(ROOT, out), width: w, kb: Math.round(s.size / 102.4) / 10 });
+  }
+
+  // Remove the old PNG fallbacks — spec item 5 says no CSS filter, and we are
+  // not shipping PNG. Leaving them would put 2 x 256 KB in public/ and dist/.
+  //
+  // Also remove any hero WebP wider than the source: we never upscale, so a
+  // width beyond the intrinsic size is a stale artefact from an earlier run
+  // (e.g. profile-884.webp from before the hero went WebP-only at 442px).
+  const removed = [];
+  const staleWidths = [176, 354, 800, 884, 1024, 1768];
+  for (const w of [...HERO_WIDTHS, ...staleWidths]) {
+    for (const ext of ['.png', '.webp']) {
+      if (ext === '.webp' && HERO_WIDTHS.includes(w)) continue; // keep what we just made
+      const p = path.join(PUBLIC, `${HERO_SLUG}-${w}${ext}`);
+      try {
+        await unlink(p);
+        removed.push(path.relative(ROOT, p));
+      } catch { /* not present */ }
+    }
+  }
+
+  return { beforeBytes, produced, removed, intrinsic: { w: meta.width, h: meta.height } };
+}
+
 async function processOne(absPath) {
   const beforeStat = await stat(absPath);
   const beforeBytes = beforeStat.size;
   const base = path.basename(absPath, path.extname(absPath));
-  // Fail loudly if the input filename doesn't match a known slug — this catches
-  // typos in the originals/ folder before they leak into public/.
   const slug = base;
+  // The hero portrait is handled separately by buildHero() because it needs the
+  // saturation boost baked in and lands in public/ rather than public/projects/.
+  if (slug === HERO_SLUG) return { slug, skipped: 'handled by buildHero()' };
 
   const image = sharp(absPath);
   const meta = await image.metadata();
@@ -156,6 +227,10 @@ async function main() {
   let totalAfter = 0;
   for (const abs of originals) {
     const r = await processOne(abs);
+    if (r.skipped) {
+      report.push(`- ${path.relative(ROOT, abs)}: ${r.skipped}`);
+      continue;
+    }
     totalBefore += r.beforeBytes;
     const sum = r.produced.reduce((a, b) => a + b.kb, 0);
     totalAfter += sum;
@@ -165,6 +240,20 @@ async function main() {
   report.push(`Total before:        ${(totalBefore / 1024).toFixed(1)} KB (raw PNGs in originals/)`);
   report.push(`Total WebP emitted:  ${totalAfter.toFixed(1)} KB (sum across 3 widths per project)`);
   report.push(`Per-image soft cap:  ${SOFT_LIMIT_KB} KB`);
+
+  // Hero portrait: saturation baked into the WebP, no CSS filter at runtime.
+  report.push('');
+  report.push(`## Hero portrait (saturate(${HERO_SATURATE}) baked in, WebP only)`);
+  const hero = await buildHero();
+  if (hero.skipped) {
+    report.push(`- ${hero.skipped}`);
+  } else {
+    report.push(`- originals/${HERO_SLUG}.png: ${(hero.beforeBytes / 1024).toFixed(1)} KB (${hero.intrinsic.w}x${hero.intrinsic.h})`);
+    for (const p of hero.produced) report.push(`- ${p.file}: ${p.width}w ${p.kb} KB`);
+    if (hero.removed.length) {
+      report.push(`- removed PNG fallbacks (no CSS filter needed): ${hero.removed.join(', ')}`);
+    }
+  }
 
   const removed = await cleanupPublicProjects();
   if (removed.length) {

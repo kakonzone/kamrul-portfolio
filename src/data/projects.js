@@ -42,7 +42,7 @@ export const projects = [
       'Lumio is a Flutter IPTV and sports streaming app. I built it end to end: the app itself, a Cloudflare Worker that serves the channel list, an in-app update system, and a GitHub Actions pipeline that builds and publishes release APKs. It started as LumioTV (Lumio Sports TV) and grew into a full project with its own backend and release process.',
     tech: ['Flutter', 'Dart', 'Clouflare', "CICD"],
     repoUrl: 'https://github.com/kakonzone/lumio',
-    liveUrl: 'lumio.kakonzone.me',
+    liveUrl: 'https://lumio.kakonzone.me',
     features: [
       'Live IPTV and sports channel streaming',
       'Channel list served from a Cloudflare Worker, so channels can be updated without releasing a new app version',

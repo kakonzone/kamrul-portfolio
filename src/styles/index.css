@@ -40,9 +40,30 @@ body {
   @apply min-h-screen bg-bg font-sans text-fg antialiased;
 }
 
-/* ---- Hero background grid (CSS only, themed via vars) ---- */
+/* ---- Hero background grid (CSS only, themed via vars) ----
+
+   The grid is painted by a ::before layer, NOT by the section itself. It used
+   to sit directly on `.hero-bg`, but a mask applies to an element's ENTIRE
+   subtree — so the radial fade written for the grid lines was also fading the
+   left column's h1, tagline, buttons and social icons toward the page
+   background, which read as a dark band lying over the text. A mask cannot be
+   lifted off the children, so the grid moves to its own absolutely-positioned
+   layer: the fade now touches the decoration only, and the section's own
+   background plus every child paint at full strength.
+   `isolation: isolate` keeps the containment the mask used to provide. */
 .hero-bg {
+  position: relative;
+  isolation: isolate;
   background-color: var(--color-bg);
+}
+
+.hero-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  /* Behind the content column (z-20) and the photo stage (z-10). */
+  z-index: 0;
+  pointer-events: none;
   background-image:
     linear-gradient(var(--color-line) 1px, transparent 1px),
     linear-gradient(90deg, var(--color-line) 1px, transparent 1px);
@@ -54,12 +75,12 @@ body {
 }
 
 /* Tame the line opacity for the grid so it reads as a subtle texture */
-html.dark .hero-bg {
+html.dark .hero-bg::before {
   background-image:
     linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
 }
-html:not(.dark) .hero-bg {
+html:not(.dark) .hero-bg::before {
   background-image:
     linear-gradient(rgba(10, 28, 40, 0.06) 1px, transparent 1px),
     linear-gradient(90deg, rgba(10, 28, 40, 0.06) 1px, transparent 1px);
@@ -198,15 +219,54 @@ html:not(.dark) .hero-bg {
 }
 
 /* ---------------------------------------------------------------------------
-   RICH MODE — only when the capability check put .fx-on on <html>
---------------------------------------------------------------------------- */
-.fx-on .hero-rings i {
-  will-change: transform;
-}
-.fx-on .hero-rings i:nth-child(1) { animation: ring-spin var(--ring1-dur) linear infinite; }
-.fx-on .hero-rings i:nth-child(2) { animation: ring-spin var(--ring2-dur) linear infinite; }
-.fx-on .hero-rings i:nth-child(3) { animation: ring-spin-rev var(--ring3-dur) linear infinite; }
+   HERO RING ROTATION — ON BY DEFAULT FOR EVERYONE.
 
+   The three rings animate `transform: rotate()` only, with a FIXED
+   border-radius. A transform-only animation on an already-rasterised layer
+   dirties neither Style, Layout, Paint nor Raster — the browser just
+   re-composites. Measured on this project's hero: Paint 0 ms and Raster 0 ms per
+   frame, Composite carries the whole cost (see
+   verification/perf/rings-default-trace.md).
+
+   So rotation does NOT depend on the rich-mode capability gate. It is on for
+   every visitor, including phones and privacy-hardened browsers.
+
+   Rotation pauses when:
+     * the user prefers reduced motion              -> static pose (below)
+     * the hero is scrolled out of view            -> .hero-paused
+     * the tab is hidden                           -> html.fx-paused
+     * the runtime guard measures < 30fps for 3s  -> html.fx-rings-static
+--------------------------------------------------------------------------- */
+.hero-rings i {
+  will-change: transform;
+  animation: ring-spin var(--ring1-dur) linear infinite;
+}
+.hero-rings i:nth-child(1) { animation-duration: var(--ring1-dur); }
+.hero-rings i:nth-child(2) { animation-duration: var(--ring2-dur); }
+.hero-rings i:nth-child(3) { animation-name: ring-spin-rev; animation-duration: var(--ring3-dur); }
+
+/* Reduced motion: no rotation at all. The rings keep their fixed organic
+   shapes, so the hero still looks complete — it just holds still. */
+@media (prefers-reduced-motion: reduce) {
+  .hero-rings i {
+    animation: none;
+    will-change: auto;
+  }
+}
+
+/* Runtime-guard escape hatch, set by src/fx only when it measures a sustained
+   sub-30fps window. There is no capability-check path to this class: rings
+   rotate for everyone until reduced-motion or the measured guard says stop. */
+html.fx-rings-static .hero-rings i {
+  animation: none;
+  will-change: auto;
+}
+
+/* ---------------------------------------------------------------------------
+   RICH MODE ONLY — the custom cursor, the dot float and the blob drift still
+   depend on the capability gate, because they are the parts that cost real
+   per-frame work (a rAF cursor and three extra animating layers).
+--------------------------------------------------------------------------- */
 .fx-on .hero-blob {
   will-change: transform;
   animation: blob-drift 60s ease-in-out infinite;
@@ -299,16 +359,11 @@ html.fx-paused .hero-dot {
 }
 /* ---------------------------------------------------------------------------
    RENDER-COST CONTAINMENT (Step 6)
-   Sections below the fold skip layout/paint until they are near the viewport.
-   `contain-intrinsic-size` reserves roughly the right scrollbar height so the
-   scrollbar does not jump when the section is first laid out (no CLS).
-   `content-visibility` is Chromium-only today; everywhere else these sections
-   simply render as before, which is why it is safe to apply unconditionally.
+   `contain-intrinsic-size` reserves roughly the right scrollbar height for a
+   section the first time it is laid out. It is inert without `content-visibility`
+   or `contain: size`, so it is safe to leave in place unconditionally.
 --------------------------------------------------------------------------- */
-main#main-content > section:not(:first-child),
-main#main-content > section + section > div {
-  content-visibility: auto;
-}
+/* `content-visibility: auto` removed: with no `contain-intrinsic-size` on the inner <div>, below-fold sections collapsed to ~192px until scrolled, so page height and navbar scroll targets were wrong. */
 
 #about    { contain-intrinsic-size: auto 900px; }
 #skills   { contain-intrinsic-size: auto 1100px; }
@@ -335,7 +390,10 @@ main#main-content > section + section > div {
    mix-blend-mode. Scale and opacity animate via CSS transitions on the same
    transform the rAF loop writes.
 --------------------------------------------------------------------------- */
-html:not(.fx-on) .cursor-layer { display: none; }
+/* The custom cursor is ON by default for anything with a fine pointer.
+   It is NOT gated on .fx-on any more. The layer starts at opacity 0 and only
+   becomes visible on the first real mousemove, and the hook hides the whole
+   layer on touch-only devices or when it measures real lag. */
 
 /* The rAF loop writes `transform` every frame (translate + scale). These
    transitions only smooth the SCALE component between discrete states; the
@@ -351,4 +409,72 @@ html:not(.fx-on) .cursor-layer { display: none; }
 .cursor-dot--hover,
 .cursor-dot--down {
   transform-origin: center;
+}
+
+/* ---- Skills two-column layout --------------------------------------------
+   The chips keep their existing markup, class names, icons, brand colors and
+   themeAware behavior. Only the box around them changed.
+
+   The artwork is asked for at a fixed 30cm square (30cm = 30/2.54in x 96dpi =
+   1134px). That is far wider than a chip column, so the two boxes cannot share
+   one line at this content width: `flex-wrap: wrap` therefore drops the tree
+   onto its own line, centred, instead of letting it overflow or squash the
+   chips. `max-width: 100%` is what keeps that safe on narrow screens, and
+   `object-fit: contain` inside `aspect-ratio: 1 / 1` guarantees the artwork is
+   never stretched — it letterboxes inside the square rather than distorting.
+
+   Sticky is desktop-only: it follows the reader down the taller chip column,
+   and is switched off by the mobile block below where there is no second
+   column to stick beside.
+
+   NO DECORATION: the artwork carries its own opaque background, so there is no
+   border, outline, ring, radius or shadow on the image or its wrapper — those
+   only framed a background that is already part of the picture. */
+.skills-layout {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.skills-left {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.skills-right {
+  flex: 0 0 clamp(340px, 46%, 620px);
+  position: static;
+  overflow: visible;
+}
+
+.skills-gif {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  transform: scale(1.6);       /* tree 1.6 গুণ বড় */
+  transform-origin: center;
+}
+
+@media (max-width: 768px) {
+  .skills-layout {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .skills-right {
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: 420px;
+    margin: 1rem auto 0;
+    overflow: visible;        /* hidden সরান, নইলে কাটা পড়বে */
+  }
+
+  .skills-gif {
+    transform: none;          /* scale বন্ধ, phone-এ লাগবে না */
+    width: 100%;
+    height: auto;
+  }
 }

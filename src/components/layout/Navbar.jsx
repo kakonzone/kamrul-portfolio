@@ -21,7 +21,12 @@ const ALL_LINKS = [
 
 function scrollToSection(sectionId) {
   const el = document.getElementById(sectionId);
-  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (!el) return;
+  // Keep the URL in step with the scroll, so the section can be linked and the
+  // browser Back button returns to where the visitor was reading. `replaceState`
+  // (not pushState) so scrolling never floods the history stack.
+  window.history.replaceState(null, '', `#${sectionId}`);
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 export default function Navbar() {
@@ -75,12 +80,11 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-bg/95">
       {/* Desktop: 3-col grid so the link list is centered relative to the viewport. */}
-      <nav className="relative mx-auto hidden h-16 max-w-content items-center px-6 md:grid md:grid-cols-3">
+      <nav aria-label="Primary" className="relative mx-auto hidden h-16 max-w-content items-center px-6 md:grid md:grid-cols-3">
         <a
           href="/"
           onClick={handleBrand}
           className="justify-self-start text-base font-bold tracking-tight text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-md px-1"
-          aria-label="Kamrul. — back to top"
         >
           <span>Kamrul</span>
           <span className="text-accent">.</span>
@@ -119,12 +123,11 @@ export default function Navbar() {
       </nav>
 
       {/* Mobile: simple row with logo + right cluster */}
-      <nav className="mx-auto flex h-16 max-w-content items-center justify-between px-6 md:hidden">
+      <nav aria-label="Mobile" className="mx-auto flex h-16 max-w-content items-center justify-between px-6 md:hidden">
         <a
           href="/"
           onClick={handleBrand}
           className="text-base font-bold tracking-tight text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-md px-1"
-          aria-label="Kamrul. — back to top"
         >
           <span>Kamrul</span>
           <span className="text-accent">.</span>

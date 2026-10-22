@@ -50,7 +50,7 @@ function MetaRow({ icon: Icon, label, value }) {
 export default function Contact() {
   const [values, setValues] = useState(EMPTY);
   const [errors, setErrors] = useState(EMPTY_ERRORS);
-  const [status, setStatus] = useState('idle'); // idle | sending | success | error
+  const [status, setStatus] = useState('idle'); // idle | sending | success | mailto | error
   const [serverError, setServerError] = useState('');
 
   const update = (field) => (e) => {
@@ -67,15 +67,36 @@ export default function Contact() {
     setServerError('');
 
     const res = await sendMessage(values);
+
+    // Honeypot tripped. Nothing was sent, so claim nothing: drop straight back
+    // to idle with no success panel and no error, which tells a bot nothing.
+    if (res.mode === 'blocked') {
+      setStatus('idle');
+      setServerError('');
+      setValues(EMPTY);
+      return;
+    }
+
+    if (res.ok && res.mode === 'mailto') {
+      // A mail client was only OPENED — nothing left this site yet. Saying
+      // "Message sent" here would be a lie, because the visitor still has to
+      // press send in their own mail app.
+      setStatus('mailto');
+      setValues(EMPTY);
+      return;
+    }
+
     if (res.ok) {
       setStatus('success');
       setValues(EMPTY);
     } else {
       setStatus('error');
       setServerError(
-        res.mode === 'http'
-          ? `Something went wrong${res.status ? ` (HTTP ${res.status})` : ''}. Your message was kept so you can try again.`
-          : 'Could not send your message. Please try again.',
+        res.error === 'Request timed out'
+          ? 'The request took too long and was stopped. Please check your connection and try again.'
+          : res.mode === 'http'
+            ? `Something went wrong${res.status ? ` (HTTP ${res.status})` : ''}. Your message was kept so you can try again.`
+            : 'Could not send your message. Please try again.',
       );
     }
   };
@@ -112,18 +133,26 @@ export default function Contact() {
 
           {/* Right: form */}
           <Card className="p-8">
-            {!CONTACT_HAS_ENDPOINT && status !== 'success' ? (
+            {!CONTACT_HAS_ENDPOINT && status !== 'success' && status !== 'mailto' ? (
               <p className="mb-6 rounded-lg border border-line bg-bg-alt p-3 text-xs text-muted">
                 No contact endpoint configured — submitting will open your email client with the message prefilled.
               </p>
             ) : null}
 
-            {status === 'success' ? (
+            {status === 'success' || status === 'mailto' ? (
               <div className="flex flex-col items-start gap-4">
-                <CheckCircle2 size={36} className="text-accent" aria-hidden="true" />
-                <h3 className="text-xl font-bold text-fg">Message sent</h3>
+                {status === 'success' ? (
+                  <CheckCircle2 size={36} className="text-accent" aria-hidden="true" />
+                ) : (
+                  <Mail size={36} className="text-accent" aria-hidden="true" />
+                )}
+                <h3 className="text-xl font-bold text-fg">
+                  {status === 'success' ? 'Message sent' : 'Check your mail app'}
+                </h3>
                 <p className="text-sm text-muted">
-                  Thanks for reaching out. I'll get back to you as soon as I can.
+                  {status === 'success'
+                    ? "Thanks for reaching out. I'll get back to you as soon as I can."
+                    : 'Your mail app should have opened. Please press send there.'}
                 </p>
                 <Button variant="secondary" onClick={resetForm}>
                   Send another message
@@ -191,7 +220,7 @@ export default function Contact() {
                     placeholder="PLACEHOLDER: Tell me a bit about what you have in mind..."
                   />
                   {errors.message ? (
-                    <p id="contact-message-error" className="mt-1.5 text-xs text-red-400">
+                    <p id="contact-message-error" role="alert" className="mt-1.5 text-xs text-red-400">
                       {errors.message}
                     </p>
                   ) : null}
@@ -233,7 +262,7 @@ function Field({ id, label, error, type = 'text', ...rest }) {
         {...rest}
       />
       {error ? (
-        <p id={`${id}-error`} className="mt-1.5 text-xs text-red-400">
+        <p id={`${id}-error`} role="alert" className="mt-1.5 text-xs text-red-400">
           {error}
         </p>
       ) : null}

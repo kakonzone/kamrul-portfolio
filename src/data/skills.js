@@ -17,7 +17,6 @@ import {
 } from 'react-icons/si';
 import {
   Code2,
-  Smartphone,
   Monitor,
   Server,
   Network,
@@ -25,9 +24,7 @@ import {
   GitBranch,
   Plug,
   Boxes,
-  Layers,
   Cpu,
-  BookOpen,
 } from 'lucide-react';
 
 // Brand icon registry: each skill points to an icon component AND the brand's

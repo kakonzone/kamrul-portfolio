@@ -12,18 +12,25 @@ export default function ProjectCard({ project }) {
       data-cursor="hover"
       className="group flex h-full flex-col overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:border-accent"
     >
-      {/* Image */}
+      {/* Image — WebP only. The wrapper is aspect-video (16:9) so the box is
+          reserved before the image loads (no CLS). Explicit width/height give the
+          browser the intrinsic ratio too. */}
       <div className="aspect-video w-full overflow-hidden rounded-t-2xl bg-bg-alt">
         {image ? (
-          <img
-            src={image}
-            srcSet={imageSrcSet}
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            alt={imageAlt || title}
-            loading="lazy"
-            decoding="async"
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-          />
+          <picture>
+            <source type="image/webp" srcSet={imageSrcSet} sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" />
+            <img
+              src={image}
+              srcSet={imageSrcSet}
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              alt={imageAlt || title}
+              width={800}
+              height={450}
+              loading="lazy"
+              decoding="async"
+              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+            />
+          </picture>
         ) : null}
       </div>
 
