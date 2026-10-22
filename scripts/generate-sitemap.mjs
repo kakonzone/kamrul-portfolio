@@ -15,7 +15,10 @@ import path from 'node:path';
 import { siteUrl, siteUrlIsMissing, siteUrlLooksLikePlaceholder } from './build-info.mjs';
 
 // Same single source as canonical / og / twitter / JSON-LD (scripts/build-info.mjs).
-const SITE = siteUrlIsMissing ? 'https://example.com' : siteUrl;
+// The fallback must stay identical to the one in scripts/inject-meta.mjs, or this
+// script would rewrite sitemap.xml / robots.txt with a different host than the one
+// baked into index.html.
+const SITE = siteUrlIsMissing ? 'https://kakonzone.me' : siteUrl;
 const ROOT = process.cwd();
 
 async function readText(rel) {

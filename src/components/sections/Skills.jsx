@@ -1,10 +1,9 @@
 import SectionHeading from '../ui/SectionHeading';
 import { skillCategories, iconFor, brandColor, isThemeAware } from '../../data/skills';
-// The artwork is served straight from public/Animating_tree.webp, so it is
+// The animated tree is loaded straight from an external archive.org URL, so it is
 // referenced by absolute URL and is never imported into the bundle — that also
-// keeps it out of Vite's hashed asset pipeline.
-// Original 6.6 MB GIF kept at src/assets/original/Animating_tree.original.gif
-// (not imported anywhere, so Vite never bundles it).
+// keeps it out of Vite's hashed asset pipeline and out of check:assets.
+// Served at 960x540, 160 frames, 10s loop. No local copy is kept.
 
 function SkillChip({ name, iconKey }) {
   const Icon = iconFor(iconKey);
@@ -57,17 +56,20 @@ export default function Skills() {
 
           <div className="skills-right">
             {/* width/height give the browser an intrinsic aspect ratio so the box
-                is reserved before the file arrives. `.skills-gif` already supplies
-                the responsiveness (`width: 100%; height: auto` in both the desktop
-                rule and the ≤768px override), so no inline sizing is needed.
-                It is far below the fold, so it stays lazy. */}
+                is reserved before the remote file arrives. `.skills-gif` already
+                supplies the responsiveness (`width: 100%; height: auto` in both
+                the desktop rule and the ≤768px override), so no inline sizing is
+                needed. It is far below the fold, so it stays lazy.
+                `referrerPolicy` keeps the visitor's URL out of the archive.org
+                request logs. */}
             <img
-              src="/Animating_tree.webp"
+              src="https://ia601902.us.archive.org/12/items/animating-tree-ezgif.com-enlarge-image/Animating_tree-ezgif.com-enlarge-image.webp"
               alt="Animated tree"
-              width={480}
-              height={270}
+              width={960}
+              height={540}
               loading="lazy"
               decoding="async"
+              referrerPolicy="no-referrer"
               className="skills-gif"
             />
           </div>

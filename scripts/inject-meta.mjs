@@ -11,7 +11,7 @@ import path from 'node:path';
 import { siteUrl, siteUrlRaw, siteUrlIsMissing, siteUrlLooksLikePlaceholder, build } from './build-info.mjs';
 
 const ROOT = process.cwd();
-const SITE = siteUrlIsMissing ? 'https://example.com' : siteUrl;
+const SITE = siteUrlIsMissing ? 'https://kakonzone.me' : siteUrl;
 const SITE_NAME = process.env.VITE_SITE_NAME || 'Kamrul · Portfolio';
 
 function getBetween(src, key, fallback = '') {
