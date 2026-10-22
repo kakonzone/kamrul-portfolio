@@ -290,14 +290,26 @@ html.fx-paused .hero-dot {
 }
 
 /* ---------------------------------------------------------------------------
-   Narrow screens: the photo wrapper is the clipping context, so the glow and
-   blob can never bleed onto the text column or up under the navbar.
+   Horizontal clip for the hero decoration.
+
+   The rings and dots are drawn OUTSIDE the photo box (`.hero-rings` is
+   `inset: -6%`), so any clip tight around the photo sliced them with a straight
+   edge on three sides. They are fully inside the SECTION at every width, so the
+   clip belongs here, on the full-width section — nothing that should be visible
+   is cut, and anything that would widen the page is cut at the page edge.
+
+   `overflow-x: clip` (not `hidden`) creates no scroll container, so
+   `position: sticky` on the navbar is unaffected, and `overflow-y` stays
+   visible so the rings are not clipped vertically either.
 --------------------------------------------------------------------------- */
+.hero-bg {
+  overflow-x: clip;
+}
 @media (max-width: 1023px) {
   .hero-stage {
-    /* contain: paint makes this element a clipping/isolation context. overflow
-       is kept as the widely-supported fallback for older engines. */
-    overflow: hidden;
+    /* Keep the isolation (the stage is the decoration's stacking context) but
+       do NOT clip: a tight clip here sliced the rings and dots with a straight
+       edge. The full-width `.hero-bg` clip above handles page overflow instead. */
     isolation: isolate;
   }
 
@@ -307,6 +319,13 @@ html.fx-paused .hero-dot {
   .hero-photo .hero-blob { inset: -2% -2% 0 -4%; }
   .hero-photo .hero-rings { inset: -4%; }
 }
+
+/* 1024–1319px: the hero column is narrower here than at 1440px, and the rings
+   and glow reach past the right edge of the viewport — which widened the whole
+   document and left the "Desktop site" layout pushed to one side.
+   This used to clip `.hero-stage`, but that box hugs the photo and sliced the
+   rings and dots with a straight edge. The full-width `.hero-bg` clip declared
+   above stops the page growing while leaving the decoration whole. */
 
 /* Older engines without contain: paint still get the overflow clipping above. */
 @supports not (contain: paint) {
@@ -454,8 +473,34 @@ html.fx-paused .hero-dot {
   border: none;
   border-radius: 0;
   box-shadow: none;
-  transform: scale(1.6);       /* tree 1.6 গুণ বড় */
+  /* The scale is width-dependent and lives in the media queries below: a single
+     fixed scale(1.6) pushed the tree's right edge 88–101px past the viewport at
+     980–1080px, which widened the whole page. */
+  transform: none;
   transform-origin: center;
+}
+
+/* The tree and its falling leaves are decoration. Clip them to the section so
+   they can never widen the document. `overflow-x: clip` rather than `hidden`:
+   it does not create a scroll container, so `position: sticky` keeps working. */
+#skills {
+  overflow-x: clip;
+}
+
+/* 769–1279px: the two-column layout is narrower here, so 1.6 does not fit.
+   1.15 is the largest scale that still clears the right edge at 980px, the
+   narrowest width in this band. */
+@media (min-width: 769px) and (max-width: 1279px) {
+  .skills-gif {
+    transform: scale(1.15);     /* tree 1.15 গুণ বড় */
+  }
+}
+
+/* 1280px and up: the column is wide enough for the original 1.6 — unchanged. */
+@media (min-width: 1280px) {
+  .skills-gif {
+    transform: scale(1.6);      /* tree 1.6 গুণ বড় */
+  }
 }
 
 @media (max-width: 768px) {
