@@ -768,8 +768,14 @@ html.fx-paused .hero-dot {
 
 /* STEP 3: on a phone the tree column (image + quote + thin line) comes FIRST,
    above the skill cards — the artwork is the thing you want to see before
-   scrolling a long list of chips. Grid areas place it without moving the DOM,
-   so the reading order on wider screens is untouched. */
+   scrolling a long list of chips.
+
+   One `.skills-tree` element in the DOM, moved with grid areas, never duplicated.
+   The card order below is the desktop READING order (left column top-to-bottom,
+   then right column, then the full-width card): Mobile Development, Backend &
+   APIs, Web Development, Programming Languages, Computer Science Fundamentals,
+   Tools & Workflow. `row-gap: 1.5rem` is the 24px that separates the tree column
+   from the first card — and each card from the next. */
 @media (max-width: 768px) {
   .skills-layout {
     grid-template-columns: minmax(0, 1fr);
@@ -777,8 +783,8 @@ html.fx-paused .hero-dot {
       'tree'
       'mobile'
       'backend'
-      'lang'
       'web'
+      'lang'
       'cs'
       'tools';
     row-gap: 1.5rem;
