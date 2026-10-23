@@ -430,96 +430,364 @@ html.fx-paused .hero-dot {
   transform-origin: center;
 }
 
-/* ---- Skills two-column layout --------------------------------------------
-   The chips keep their existing markup, class names, icons, brand colors and
-   themeAware behavior. Only the box around them changed.
+/* ---- Skills section header -----------------------------------------------
+   Scoped to `.skills-*` classes so no other section is affected (the shared
+   <SectionHeading> component is used by seven sections and is left untouched).
 
-   The artwork is asked for at a fixed 30cm square (30cm = 30/2.54in x 96dpi =
-   1134px). That is far wider than a chip column, so the two boxes cannot share
-   one line at this content width: `flex-wrap: wrap` therefore drops the tree
-   onto its own line, centred, instead of letting it overflow or squash the
-   chips. `max-width: 100%` is what keeps that safe on narrow screens, and
-   `object-fit: contain` inside `aspect-ratio: 1 / 1` guarantees the artwork is
-   never stretched — it letterboxes inside the square rather than distorting.
+   EYEBROW RULE: a 40px x 2px line drawn as a ::before on the same row as the
+   word "SKILLS". It is a flex item, so `flex: 0 0 auto` keeps it from shrinking
+   on narrow screens and `gap` spaces it from the word.
 
-   Sticky is desktop-only: it follows the reader down the taller chip column,
-   and is switched off by the mobile block below where there is no second
-   column to stick beside.
-
-   NO DECORATION: the artwork carries its own opaque background, so there is no
-   border, outline, ring, radius or shadow on the image or its wrapper — those
-   only framed a background that is already part of the picture. */
-.skills-layout {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
+   THEME: the line uses `var(--color-accent)` rather than a literal color, so
+   it re-colors with the theme on its own — #00648a on the light background,
+   #00b8f0 on the dark one. The word itself uses the `text-accent` utility.
+   The subtitle uses `text-muted`, which is defined per theme for both. */
+.skills-heading {
+  max-width: 46rem;
 }
 
-.skills-left {
-  flex: 1 1 0;
+.skills-eyebrow {
+  @apply mb-4 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.22em] text-accent;
+}
+
+.skills-eyebrow::before {
+  content: '';
+  display: block;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--color-accent);
+}
+
+.skills-subtitle {
+  @apply mt-4 text-base leading-relaxed text-muted;
+  max-width: 520px;
+}
+
+/* ---- Skills layout: three-column grid ------------------------------------
+   `.skills-layout` is a grid of three equal `minmax(0, 1fr)` tracks. The six
+   category groups sit in columns 1–2 and the animated tree owns column 3,
+   spanning every row:
+
+     row 1   mobile  lang    tree
+     row 2   backend cs      tree
+     row 3   web     cs      tree
+     row 4   tools   tools   tree
+
+   "cs" on two consecutive rows makes Computer Science Fundamentals span both;
+   "tools" twice in the last row makes Tools & Workflow span both columns; and
+   "tree" on every row makes the tree span all four. The areas are applied by
+   the `.skills-group--*` modifier classes in Skills.jsx, so the JSX order does
+   not have to match the visual order.
+
+   `minmax(0, 1fr)`, NOT plain `1fr`: an `fr` track's automatic minimum is its
+   min-content size, so one long chip ("Database Management Systems (DBMS)")
+   could force a track wider than a third of the grid and push the section into
+   horizontal overflow. `minmax(0, ...)` drops that floor, and `min-width: 0`
+   on each grid child lets the chip rows wrap instead. Gap is a uniform 16px.
+
+   Only structure and spacing live here: the chips keep their existing markup,
+   class names, icons, brand colors and themeAware behavior, and the cards
+   themselves are not restyled. */
+.skills-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas:
+    'mobile  lang    tree'
+    'backend cs      tree'
+    'web     cs      tree'
+    'tools   tools   tree';
+  gap: 1rem;
+  align-items: start;
+}
+
+/* ---- Skills cards --------------------------------------------------------
+   One card per category. Every color is derived from a theme variable, so the
+   card follows the theme on its own:
+
+     background  `--color-card` (already lighter than the section's
+                 `--color-bg-alt` in dark) tipped with a little `--color-accent`
+                 at the top and a little `--color-fg` at the bottom, which
+                 turns into a light blue-grey card in the light theme where
+                 `--color-card` and the section are both white.
+     border      accent at 40%.
+     shadow      STATIC, two layers: an accent glow at 18% for the dark theme
+                 and a `--color-fg` grey shadow that only reads in the light
+                 theme. No `filter`, no `backdrop-filter`, no blend mode, no
+                 transition on the shadow — the site's performance rule. */
+.skills-group {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 40%, transparent);
+  border-radius: 14px;
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-card) 92%, var(--color-accent) 8%) 0%,
+    color-mix(in srgb, var(--color-card) 97%, var(--color-fg) 3%) 100%
+  );
+  box-shadow:
+    0 18px 38px -26px color-mix(in srgb, var(--color-accent) 18%, transparent),
+    0 2px 8px -4px color-mix(in srgb, var(--color-fg) 20%, transparent);
+}
+
+.skills-group--mobile  { grid-area: mobile; }
+.skills-group--backend { grid-area: backend; }
+.skills-group--lang    { grid-area: lang; }
+.skills-group--web     { grid-area: web; }
+.skills-group--cs      { grid-area: cs; }
+.skills-group--tools   { grid-area: tools; }
+
+/* `.skills-layout` sets `align-items: start`, so the CS card stopped at its
+   content height and left an empty strip under it while the Web Development
+   card beside it ran to the bottom of row 3. `align-self: stretch` lets this
+   one card fill both rows it spans, so both cards share a bottom edge. */
+.skills-group--cs {
+  align-self: stretch;
+}
+
+.skills-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.skills-card-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--color-accent);
+}
+
+.skills-card-headings {
+  flex: 1 1 auto;
   min-width: 0;
 }
 
-.skills-right {
-  flex: 0 0 clamp(340px, 46%, 620px);
-  position: static;
-  overflow: visible;
+/* Decorative only: aria-hidden in the markup, not a button, no click handler,
+   so it must not read as interactive — hence no hover state and no cursor. */
+.skills-card-chevron {
+  flex: 0 0 auto;
+  color: var(--color-muted);
+  opacity: 0.7;
+}
+
+.skills-group-title {
+  @apply text-[15px] font-semibold leading-snug text-fg;
+}
+
+.skills-group-desc {
+  @apply mt-1 text-[13px] leading-relaxed text-muted;
+  /* `--color-muted` on the light card measures 4.46:1 — just under WCAG AA for
+     13px text. Tinting it 8% toward `--color-fg` lifts it to ~4.9:1 in the light
+     theme and also raises the dark theme's 6.06:1 to ~6.6:1. Same two vars. */
+  color: color-mix(in srgb, var(--color-muted) 92%, var(--color-fg) 8%);
+}
+
+.skills-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+/* Chip: 34px tall, 8px radius, translucent surface. The background mixes in
+   `--color-fg`, so it is a lighter navy chip on the dark card and a light grey
+   chip on the light card — one rule, both themes. Hover transitions
+   `border-color` only: a color change cannot reflow anything, so there is no
+   layout shift, and the 1px border is present in both states so the box never
+   changes size. */
+.skills-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 34px;
+  padding: 0 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--color-fg) 14%, transparent);
+  border-radius: 8px;
+  background-color: color-mix(in srgb, var(--color-fg) 6%, transparent);
+  color: var(--color-fg);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  /* Safety valve: a label longer than the card can never push the chip out of it.
+     `min-width: 0` is what lets the flex item shrink below its content size. */
+  min-width: 0;
+  max-width: 100%;
+  transition: border-color 200ms ease;
+}
+
+.skills-chip:hover {
+  border-color: var(--color-accent);
+}
+
+.skills-chip > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* At 360px and below a card is narrower than the longest label ("Database
+   Management Systems (DBMS)", ~289px), so the ellipsis above would silently
+   shorten it. Those chips wrap to two lines instead and keep the whole name;
+   `min-height` leaves the one-line chips at exactly 34px. */
+@media (max-width: 400px) {
+  .skills-chip {
+    height: auto;
+    min-height: 34px;
+    padding: 0.375rem 0.5rem;
+    white-space: normal;
+  }
+}
+
+/* ---- Skills tree column --------------------------------------------------
+   ONE rule for every screen size, and the <img> IS the box: `aspect-ratio`
+   derives the height from whatever width is available, `max-width` is only a
+   cap. So it is exactly 520x350 wherever 520px of column exists and keeps the
+   same 520:350 shape as it shrinks on tablet and phone. There is no fixed
+   width, no fixed height, no `max-height` and no `transform` anywhere on this
+   image — each of those is what squeezed or shifted it before.
+
+   `object-fit: cover` + `object-position: center` means the crop is symmetric:
+   at 520x350 the 960x540 artwork (1.778) is scaled to 622x350 and 51.1px is
+   trimmed from EACH side — 8.21% per side, the central 83.57% of the width.
+   Measured against the real file (160 frames, sharp): the tree and its labels
+   occupy x 213..736 in frame 0, well inside that window, and only the drifting
+   leaves/particles reach the edges — 4 of the 160 frames (71, 80, 98, 152)
+   clip a label edge by 2–23px. See the comment on `object-fit` below.
+
+   `width: 100%` on `.skills-tree` is load-bearing: with only
+   `margin-inline: auto` a grid item stops stretching and collapses to
+   fit-content (the quote's 164px of text won over the image's percentage). */
+.skills-tree {
+  grid-area: tree;
+  align-self: center;
+  width: 100%;
+  max-width: 520px;
+  min-width: 0;
+  margin-inline: auto;
+  overflow: clip;
+  /* Image, quote and rule as one centered stack: each sits directly under the
+     one above it with a 20px gap, instead of the quote being pushed to the
+     bottom of the column. */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 20px;
 }
 
 .skills-gif {
   display: block;
   width: 100%;
+  max-width: 520px;
+  aspect-ratio: 520 / 350;
   height: auto;
+  object-fit: cover;
+  object-position: center;
+  margin-inline: auto;
   border: none;
   border-radius: 0;
   box-shadow: none;
-  /* The scale is width-dependent and lives in the media queries below: a single
-     fixed scale(1.6) pushed the tree's right edge 88–101px past the viewport at
-     980–1080px, which widened the whole page. */
-  transform: none;
-  transform-origin: center;
+}
+
+/* Quote: a 2px accent bar on the left with the three phrases inside it. The 20px
+   gap above it comes from `.skills-tree`'s flex `gap`, so there is no margin
+   here — that is what keeps the quote directly under the image at every width.
+   The muted white is a mix of the theme's own foreground and background, so it
+   is a soft white in the dark theme and a soft charcoal in the light one
+   (10.4:1) instead of white-on-white. */
+.skills-tree-quote {
+  margin: 0;
+  padding-left: 1rem;
+  border-left: 5px solid var(--color-accent);
+  color: color-mix(in srgb, var(--color-fg) 82%, var(--color-bg-alt) 18%);
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+/* Decorative rule: a full-column hairline in `--color-line` with a small accent
+   dot centered on it. Purely ornamental, hence `aria-hidden` in the markup. */
+.skills-tree-rule {
+  position: relative;
+  height: 1px;
+  margin-top: 0;
+  background: var(--color-line);
+}
+
+.skills-tree-rule::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  transform: translate(-50%, -50%);
 }
 
 /* The tree and its falling leaves are decoration. Clip them to the section so
    they can never widen the document. `overflow-x: clip` rather than `hidden`:
-   it does not create a scroll container, so `position: sticky` keeps working. */
+   it does not create a scroll container. */
 #skills {
   overflow-x: clip;
 }
 
-/* 769–1279px: the two-column layout is narrower here, so 1.6 does not fit.
-   1.15 is the largest scale that still clears the right edge at 980px, the
-   narrowest width in this band. */
-@media (min-width: 769px) and (max-width: 1279px) {
-  .skills-gif {
-    transform: scale(1.15);     /* tree 1.15 গুণ বড় */
+/* ---- 1400px and up: make 520px reachable ---------------------------------
+   `.mx-auto.max-w-6xl` caps this section's container at 1152px, which pins all
+   three tracks to 373.3px — so the tree could never reach its 520px. The
+   `skills-container` modifier is added to that same wrapper in Skills.jsx and
+   is scoped to THIS section only; every other section keeps `max-w-6xl`.
+   Third track is a hard 520px, the other two share what is left:
+   (1320 - 32 gap - 520) / 2 = 384px each. */
+@media (min-width: 1400px) {
+  .mx-auto.max-w-6xl.skills-container {
+    max-width: 1320px;
+  }
+
+  .skills-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 520px);
   }
 }
 
-/* 1280px and up: the column is wide enough for the original 1.6 — unchanged. */
-@media (min-width: 1280px) {
-  .skills-gif {
-    transform: scale(1.6);      /* tree 1.6 গুণ বড় */
+/* 769–1099px: two card columns with the same row rhythm, and the tree drops to
+   a centred full-width row underneath (a 1fr tree track would squash it). No
+   width cap of its own here: `.skills-tree` already caps the column at 520px in
+   every band and `.skills-gif` caps the image to the same number —
+   band-specific numbers are what let the image and its wrapper drift apart. */
+@media (max-width: 1099px) and (min-width: 769px) {
+  .skills-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      'mobile  lang'
+      'backend cs'
+      'web     cs'
+      'tools   tools'
+      'tree    tree';
   }
 }
 
+/* STEP 3: on a phone the tree column (image + quote + thin line) comes FIRST,
+   above the skill cards — the artwork is the thing you want to see before
+   scrolling a long list of chips. Grid areas place it without moving the DOM,
+   so the reading order on wider screens is untouched. */
 @media (max-width: 768px) {
   .skills-layout {
-    flex-direction: column;
-    align-items: stretch;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'tree'
+      'mobile'
+      'backend'
+      'lang'
+      'web'
+      'cs'
+      'tools';
+    row-gap: 1.5rem;
+    column-gap: 1rem;
   }
 
-  .skills-right {
-    flex: 0 0 auto;
-    width: 100%;
-    max-width: 420px;
-    margin: 1rem auto 0;
-    overflow: visible;        /* hidden সরান, নইলে কাটা পড়বে */
-  }
-
-  .skills-gif {
-    transform: none;          /* scale বন্ধ, phone-এ লাগবে না */
-    width: 100%;
-    height: auto;
+  /* The longest chip label is ~289px and a phone-width card is ~327px, so the
+     1rem padding leaves only ~4px. 14px padding buys back 8px. */
+  .skills-group {
+    padding: 0.875rem;
   }
 }

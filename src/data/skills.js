@@ -78,10 +78,15 @@ export function isThemeAware(slug) {
 }
 
 // Skill groups, in display order. One chip per bullet.
+// `description` is the one-line summary rendered under the group title.
+// NOTE: stats.js looks a group up by `title` ('Programming Languages'), so that
+// title is part of the data contract — do not rename it without updating
+// src/data/stats.js.
 export const skillGroups = [
   {
     id: 'mobile-cross-platform',
-    title: 'Mobile & Cross-Platform Development',
+    title: 'Mobile Development',
+    description: 'Build cross-platform mobile apps for Android, iOS and Desktop.',
     skills: [
       { id: 'flutter', name: 'Flutter' },
       { id: 'dart', name: 'Dart' },
@@ -93,6 +98,7 @@ export const skillGroups = [
   {
     id: 'backend-apis',
     title: 'Backend & APIs',
+    description: 'Build powerful backends and integrate with external services.',
     skills: [
       { id: 'rest-apis', name: 'REST APIs' },
       { id: 'firebase', name: 'Firebase' },
@@ -104,6 +110,7 @@ export const skillGroups = [
   {
     id: 'programming-languages',
     title: 'Programming Languages',
+    description: 'Core languages I use for development and scripting.',
     skills: [
       { id: 'python', name: 'Python' },
       { id: 'c', name: 'C' },
@@ -115,6 +122,7 @@ export const skillGroups = [
   {
     id: 'web-development',
     title: 'Web Development',
+    description: 'Design and build responsive web interfaces.',
     skills: [
       { id: 'html5', name: 'HTML5' },
       { id: 'css3', name: 'CSS3' },
@@ -124,6 +132,7 @@ export const skillGroups = [
   {
     id: 'cs-fundamentals',
     title: 'Computer Science Fundamentals',
+    description: 'Build strong foundations for problem solving and system design.',
     skills: [
       { id: 'dsa', name: 'Data Structures & Algorithms' },
       { id: 'oop', name: 'Object-Oriented Programming (OOP)' },
@@ -134,7 +143,8 @@ export const skillGroups = [
   },
   {
     id: 'software-development',
-    title: 'Software Development',
+    title: 'Tools & Workflow',
+    description: 'Manage code, collaborate and streamline development.',
     skills: [
       { id: 'git', name: 'Git & GitHub' },
       { id: 'api-integration', name: 'API Integration' },
